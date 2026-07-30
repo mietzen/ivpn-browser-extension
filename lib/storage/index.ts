@@ -4,7 +4,7 @@
  * migrate cleanly.
  */
 
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 import type { IvpnServer } from '../ivpn/types';
 import type { DomainRule, ProxyMode, ProxyRules, ProxyTarget } from '../proxy/rules';
 import { DIRECT_TARGET, emptyRules, targetFromServer } from '../proxy/rules';

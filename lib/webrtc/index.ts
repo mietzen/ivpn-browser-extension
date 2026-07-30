@@ -94,11 +94,14 @@ export function isWebRtcDisableSupported(): boolean {
 
 export async function refreshWebRtcSetting(enabled: boolean, applied: boolean): Promise<void> {
   if (!isWebRtcDisableSupported()) return;
+  const api = (browser as unknown as {
+    privacy: { network: { peerConnectionEnabled: { set: (d: { value: boolean }) => Promise<void> } } };
+  }).privacy.network.peerConnectionEnabled;
   if (enabled) {
-    await browser.privacy.network.peerConnectionEnabled.set({ value: true });
+    await api.set({ value: true });
     return;
   }
   if (applied) {
-    await browser.privacy.network.peerConnectionEnabled.set({ value: false });
+    await api.set({ value: false });
   }
 }

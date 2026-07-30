@@ -11,7 +11,7 @@
  */
 
 import { browser } from 'wxt/browser';
-import { defineBackground } from 'wxt/sandbox';
+import { defineBackground } from 'wxt/utils/define-background';
 import { getServers, getConnectionStatus } from '../lib/ivpn/client';
 import type { IvpnServer } from '../lib/ivpn/types';
 import { pickRandomServer } from '../lib/ivpn/grouping';
