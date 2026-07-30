@@ -1,0 +1,68 @@
+[
+  {
+    "gateway": "us-nyc-wg-001",
+    "country_code": "US",
+    "country": "United States",
+    "city": "New York",
+    "load": 0.32,
+    "status": "online",
+    "is_active": true,
+    "in_maintenance": false,
+    "socks5": "socks5.us-nyc-wg-001.gw.ivpn.net:10.1.0.1"
+  },
+  {
+    "gateway": "us-nyc-wg-002",
+    "country_code": "US",
+    "country": "United States",
+    "city": "New York",
+    "load": 0.41,
+    "status": "online",
+    "is_active": true,
+    "in_maintenance": false,
+    "socks5": "socks5.us-nyc-wg-002.gw.ivpn.net:10.1.0.2"
+  },
+  {
+    "gateway": "us-sfo-wg-001",
+    "country_code": "US",
+    "country": "United States",
+    "city": "San Francisco",
+    "load": 0.18,
+    "status": "online",
+    "is_active": true,
+    "in_maintenance": false,
+    "socks5": "socks5.us-sfo-wg-001.gw.ivpn.net:10.1.1.1"
+  },
+  {
+    "gateway": "de-fra-wg-001",
+    "country_code": "DE",
+    "country": "Germany",
+    "city": "Frankfurt",
+    "load": 0.62,
+    "status": "online",
+    "is_active": true,
+    "in_maintenance": false,
+    "socks5": "socks5.de-fra-wg-001.gw.ivpn.net:10.2.0.1"
+  },
+  {
+    "gateway": "de-fra-wg-maint",
+    "country_code": "DE",
+    "country": "Germany",
+    "city": "Frankfurt",
+    "load": 0.0,
+    "status": "offline",
+    "is_active": true,
+    "in_maintenance": true,
+    "socks5": "socks5.de-fra-wg-maint.gw.ivpn.net:10.2.0.2"
+  },
+  {
+    "gateway": "jp-tok-wg-001",
+    "country_code": "JP",
+    "country": "Japan",
+    "city": "Tokyo",
+    "load": 0.0,
+    "status": "offline",
+    "is_active": false,
+    "in_maintenance": false,
+    "socks5": "socks5.jp-tok-wg-001.gw.ivpn.net:10.3.0.1"
+  }
+]

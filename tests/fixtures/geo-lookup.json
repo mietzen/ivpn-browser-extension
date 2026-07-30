@@ -1,0 +1,10 @@
+{
+  "ip_address": "203.0.113.42",
+  "country_code": "US",
+  "country": "United States",
+  "city": "New York",
+  "isp": "Example ISP",
+  "longitude": -74.006,
+  "latitude": 40.7128,
+  "is_vpn": true
+}

@@ -1,0 +1,241 @@
+:root {
+  /* Brand colors sourced from IVPN's official desktop-app UI:
+     --ivpn-red: official wordmark logo color (ui/src/assets/logo.svg)
+     --ivpn-blue: selected/active state (ui/src/components/scss/settings.scss) */
+  --ivpn-red: #FF3344;
+  --ivpn-red-soft: #fde0e3;
+  --ivpn-blue: #449cf8;
+  --ivpn-blue-soft: #d8e2ee;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: var(--ivpn-red);
+  --danger: #dc2626;
+  --success: #16a34a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --fg: #f5f5f5;
+    --muted: #9ca3af;
+    --border: #374151;
+    --ivpn-red-soft: #4a1c20;
+    --ivpn-blue-soft: #2a3a52;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg);
+  width: 360px;
+  min-height: 480px;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.brand-mark {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  color: var(--ivpn-red);
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--fg);
+}
+
+.icon-btn:hover {
+  background: var(--ivpn-blue-soft);
+}
+
+.status,
+.mode,
+.picker,
+.history {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.status-label {
+  color: var(--muted);
+}
+
+.status-value {
+  font-weight: 500;
+}
+
+.text-btn {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.mode-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mode-btn:hover {
+  border-color: var(--accent);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+#picker-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.picker-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.picker-group {
+  margin-bottom: 6px;
+}
+
+.picker-country {
+  font-weight: 600;
+  padding: 4px 6px;
+  background: var(--ivpn-blue-soft);
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.picker-city {
+  padding: 4px 6px;
+}
+
+.picker-server {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.picker-server:hover {
+  background: var(--ivpn-red-soft);
+}
+
+.picker-server.selected {
+  background: var(--ivpn-red-soft);
+  font-weight: 600;
+}
+
+.picker-server .load {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.history-chip {
+  background: var(--ivpn-red-soft);
+  border: 0;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--fg);
+}
+
+.app-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.disclosure {
+  margin: 0;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
+}

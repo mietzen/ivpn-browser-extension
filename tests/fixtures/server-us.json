@@ -1,0 +1,11 @@
+{
+  "gateway": "us-nyc-wg-001",
+  "country_code": "US",
+  "country": "United States",
+  "city": "New York",
+  "load": 0.32,
+  "status": "online",
+  "is_active": true,
+  "in_maintenance": false,
+  "socks5": "socks5.us-nyc-wg-001.gw.ivpn.net:10.1.0.1"
+}

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IVPN Companion (Community)</title>
+    <link rel="stylesheet" href="~/entrypoints/popup/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark">IVPN</span>
+          <span class="brand-sub">Companion · Community</span>
+        </div>
+        <button id="open-options" class="icon-btn" type="button" aria-label="Open options">⚙</button>
+      </header>
+
+      <section class="status" id="status-panel">
+        <div class="status-row">
+          <span class="status-label">Connection</span>
+          <span class="status-value" id="status-value">Checking…</span>
+        </div>
+        <div class="status-row" id="status-ip-row" hidden>
+          <span class="status-label">IP</span>
+          <span class="status-value" id="status-ip"></span>
+        </div>
+        <div class="status-row" id="status-loc-row" hidden>
+          <span class="status-label">Location</span>
+          <span class="status-value" id="status-loc"></span>
+        </div>
+        <div class="status-row" id="status-tunnel-row">
+          <span class="status-label">Tunnel</span>
+          <span class="status-value" id="status-tunnel">—</span>
+        </div>
+        <button id="status-refresh" class="text-btn" type="button">Refresh</button>
+      </section>
+
+      <section class="mode">
+        <div class="mode-buttons" role="tablist">
+          <button class="mode-btn" data-mode="direct" type="button" role="tab">Direct</button>
+          <button class="mode-btn" data-mode="global" type="button" role="tab">Global</button>
+          <button class="mode-btn" data-mode="random" type="button" role="tab">Random</button>
+        </div>
+      </section>
+
+      <section class="picker" id="picker">
+        <input id="picker-search" type="search" placeholder="Search country, city, or gateway" />
+        <div id="picker-list" class="picker-list" role="listbox"></div>
+      </section>
+
+      <section class="history" id="history-section" hidden>
+        <h2 class="section-title">Quick pick</h2>
+        <div id="history-list" class="history-list"></div>
+      </section>
+
+      <footer class="app-footer">
+        <p class="disclosure">
+          Not related to or developed by IVPN Limited. No relationship exists.
+          Talks directly to <code>api.ivpn.net</code>; no data passes through
+          this project's maintainers.
+        </p>
+      </footer>
+    </div>
+
+    <script type="module" src="~/entrypoints/popup/main.ts"></script>
+  </body>
+</html>

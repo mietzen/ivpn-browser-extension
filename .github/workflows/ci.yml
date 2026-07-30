@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Test
+        run: npm test
+
+      - name: Build (Chrome)
+        run: npm run build:chrome
+
+      - name: Build (Firefox)
+        run: npm run build:firefox
+
+      - name: Package (Chrome)
+        run: |
+          cd .output/chrome-mv3
+          zip -r ../../ivpn-companion-community-chrome-${{ github.sha }}.zip .
+
+      - name: Package (Firefox)
+        run: |
+          cd .output/firefox-mv3
+          zip -r ../../ivpn-companion-community-firefox-${{ github.sha }}.zip .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-builds
+          path: |
+            ivpn-companion-community-chrome-${{ github.sha }}.zip
+            ivpn-companion-community-firefox-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 14

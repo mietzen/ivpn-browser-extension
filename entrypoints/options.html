@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IVPN Companion (Community) — Options</title>
+    <link rel="stylesheet" href="~/entrypoints/options/style.css" />
+  </head>
+  <body>
+    <main class="options">
+      <header class="options-header">
+        <h1>IVPN Companion <span class="badge">Community</span></h1>
+        <p class="tagline">Unofficial, community-maintained. Not affiliated with IVPN Limited.</p>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="proxy" role="tab">Proxy</button>
+        <button class="tab" data-tab="domains" role="tab">Per-domain</button>
+        <button class="tab" data-tab="privacy" role="tab">Privacy</button>
+        <button class="tab" data-tab="backup" role="tab">Backup</button>
+        <button class="tab" data-tab="about" role="tab">About</button>
+      </nav>
+
+      <section class="tab-panel active" data-tab="proxy">
+        <h2>Proxy mode</h2>
+        <div class="mode-row">
+          <label><input type="radio" name="mode" value="direct" /> Direct (no proxy)</label>
+          <label><input type="radio" name="mode" value="global" /> Global (use selected server)</label>
+          <label><input type="radio" name="mode" value="random" /> Random (new server per toggle)</label>
+        </div>
+        <h2>Global server</h2>
+        <select id="global-server"></select>
+        <button id="refresh-servers" class="text-btn" type="button">Refresh server list</button>
+      </section>
+
+      <section class="tab-panel" data-tab="domains">
+        <h2>Per-domain rules</h2>
+        <p class="hint">Add a domain to always use a specific server. Subdomains inherit the rule.</p>
+        <form id="rule-form" class="rule-form">
+          <input type="text" id="rule-domain" placeholder="example.com" required />
+          <select id="rule-server" required></select>
+          <label class="inline"><input type="checkbox" id="rule-dns" /> Proxy DNS</label>
+          <label class="inline"><input type="checkbox" id="rule-disabled" /> Disabled</label>
+          <button type="submit">Add</button>
+        </form>
+        <table class="rule-table" id="rule-table">
+          <thead>
+            <tr><th>Domain</th><th>Server</th><th>DNS</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h2>Never proxy</h2>
+        <p class="hint">Hosts in this list always go direct, regardless of any other rule.</p>
+        <form id="exclusion-form" class="rule-form">
+          <input type="text" id="exclusion-domain" placeholder="internal.lan" required />
+          <button type="submit">Add</button>
+        </form>
+        <ul id="exclusion-list" class="exclusion-list"></ul>
+      </section>
+
+      <section class="tab-panel" data-tab="privacy">
+        <h2>WebRTC</h2>
+        <p id="webrtc-support" class="hint">Checking…</p>
+        <button id="leak-check" class="text-btn" type="button">Run leak check</button>
+        <pre id="leak-result" class="result" hidden></pre>
+        <label class="inline">
+          <input type="checkbox" id="webrtc-toggle" />
+          <span id="webrtc-toggle-label">Block WebRTC (disable peer connection)</span>
+        </label>
+
+        <h2>HTTPS-Only mode</h2>
+        <p id="https-only-state" class="hint">Checking…</p>
+
+        <h2>Recommended extensions</h2>
+        <ul id="recommendation-list" class="rec-list"></ul>
+      </section>
+
+      <section class="tab-panel" data-tab="backup">
+        <h2>Import / export</h2>
+        <p class="hint">Settings and usage history as a JSON blob. Server list is refetched on import — only saved state is restored.</p>
+        <button id="export-btn" class="primary" type="button">Download export</button>
+        <label class="import-label">
+          <span>Import from file</span>
+          <input type="file" id="import-input" accept="application/json" />
+        </label>
+        <pre id="import-result" class="result" hidden></pre>
+
+        <h2>Usage history</h2>
+        <button id="clear-history" class="text-btn" type="button">Clear history</button>
+      </section>
+
+      <section class="tab-panel" data-tab="about">
+        <h2>About this extension</h2>
+        <p>
+          <strong>This extension is not related to or developed by IVPN Limited. No relationship between the developer(s) of this extension and IVPN Limited exists.</strong>
+        </p>
+        <p>
+          All trademarks, logos and brand names are the property of their respective owners. All company, product and service names used in this extension are for identification purposes only. Use of these names, trademarks and brands does not imply endorsement.
+        </p>
+        <p>
+          Brand colors used in this extension are derived from IVPN's official open-source desktop application (<a href="https://github.com/ivpn/desktop-app" target="_blank" rel="noopener noreferrer"><code>ivpn/desktop-app</code></a>, GPLv3), used as a visual reference only.
+        </p>
+        <p>
+          Talks directly to <code>api.ivpn.net</code> over HTTPS. No request, IP, selection, or URL passes through any infrastructure operated by this project's maintainers.
+        </p>
+        <p>
+          Inspired by <a href="https://github.com/mullvad/browser-extension" target="_blank" rel="noopener noreferrer"><code>mullvad/browser-extension</code></a> (GPLv3) as a feature reference only. No code, assets, or copy from that project has been copied into this one.
+        </p>
+        <p>
+          License: MIT. See <a href="https://github.com/mietzen/ivpn-browser-extension-community" target="_blank" rel="noopener noreferrer">repository</a>.
+        </p>
+        <p class="small">
+          <code>IVPN</code> is a registered trademark of IVPN Limited. Use of the mark here is referential only and does not imply endorsement.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="~/entrypoints/options/main.ts"></script>
+  </body>
+</html>
