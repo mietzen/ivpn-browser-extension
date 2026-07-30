@@ -13,39 +13,39 @@
           <span class="brand-mark">IVPN</span>
           <span class="brand-sub">Companion · Community</span>
         </div>
-        <button id="open-options" class="icon-btn" type="button" aria-label="Open options">⚙</button>
+        <button id="open-options" class="open-options-btn" type="button" aria-label="Open options">
+          Settings
+        </button>
       </header>
 
-      <section class="status" id="status-panel">
-        <div class="status-row">
-          <span class="status-label">Connection</span>
-          <span class="status-value" id="status-value">Checking…</span>
-        </div>
-        <div class="status-row" id="status-ip-row" hidden>
-          <span class="status-label">IP</span>
-          <span class="status-value" id="status-ip"></span>
-        </div>
-        <div class="status-row" id="status-loc-row" hidden>
-          <span class="status-label">Location</span>
-          <span class="status-value" id="status-loc"></span>
-        </div>
-        <div class="status-row" id="status-tunnel-row">
-          <span class="status-label">Tunnel</span>
-          <span class="status-value" id="status-tunnel">—</span>
+      <section class="status" id="status-panel" data-state="checking">
+        <div class="status-headline" id="status-headline">Checking…</div>
+        <div class="status-detail">
+          <span id="status-ip-row" hidden><span id="status-ip"></span></span>
+          <span class="status-sep" id="status-sep" hidden>·</span>
+          <span id="status-loc-row" hidden><span id="status-loc"></span></span>
+          <span class="status-sep" id="status-sep2" hidden>·</span>
+          <span id="status-tunnel-row" hidden><span id="status-tunnel"></span></span>
         </div>
         <button id="status-refresh" class="text-btn" type="button">Refresh</button>
       </section>
 
       <section class="mode">
         <div class="mode-buttons" role="tablist">
-          <button class="mode-btn" data-mode="direct" type="button" role="tab">Direct</button>
-          <button class="mode-btn" data-mode="global" type="button" role="tab">Global</button>
-          <button class="mode-btn" data-mode="random" type="button" role="tab">Random</button>
+          <button class="mode-btn" data-mode="direct" type="button" role="tab" title="No proxy — all traffic direct">
+            Off
+          </button>
+          <button class="mode-btn" data-mode="global" type="button" role="tab" title="Route all traffic through the selected server">
+            Global
+          </button>
+          <button class="mode-btn" data-mode="random" type="button" role="tab" title="Route all traffic through a randomly chosen active server">
+            Random
+          </button>
         </div>
       </section>
 
-      <section class="picker" id="picker">
-        <input id="picker-search" type="search" placeholder="Search country, city, or gateway" />
+      <section class="picker">
+        <input id="picker-search" type="search" placeholder="Search country, city, or gateway" autocomplete="off" />
         <div id="picker-list" class="picker-list" role="listbox"></div>
       </section>
 
@@ -56,9 +56,8 @@
 
       <footer class="app-footer">
         <p class="disclosure">
-          Not related to or developed by IVPN Limited. No relationship exists.
-          Talks directly to <code>api.ivpn.net</code>; no data passes through
-          this project's maintainers.
+          Community project — unaffiliated with IVPN Limited. Talks directly to
+          <code>api.ivpn.net</code>; no data passes through project maintainers.
         </p>
       </footer>
     </div>
