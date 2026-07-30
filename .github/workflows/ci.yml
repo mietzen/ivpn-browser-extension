@@ -11,29 +11,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
+      - name: Install mise
+        run: curl -fsSL https://mise.run | sh
+
+      - name: Install Node
+        run: mise install
 
       - name: Install dependencies
-        run: npm ci
+        run: mise exec -- npm ci
 
       - name: Lint
-        run: npm run lint
+        run: mise exec -- npm run lint
 
       - name: Compile
-        run: npm run compile
+        run: mise exec -- npm run compile
 
       - name: Test
-        run: npm test
+        run: mise exec -- npm test
 
       - name: Build (Chrome)
-        run: npm run build:chrome
+        run: mise exec -- npm run build:chrome
 
       - name: Build (Firefox)
-        run: npm run build:firefox
+        run: mise exec -- npm run build:firefox
 
       - name: Package (Chrome)
         run: |
