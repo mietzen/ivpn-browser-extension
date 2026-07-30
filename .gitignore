@@ -8,10 +8,6 @@ dist
 .env
 .env.local
 
-# Reference clones — read-only, never committed
-mullvad-browser-extension/
-ivpn-desktop-app/
-
 # Editor
 .vscode/
 .idea/
@@ -24,4 +20,3 @@ ivpn-desktop-app/
 test-results/
 playwright-report/
 playwright/.cache/
-screenshot.png
