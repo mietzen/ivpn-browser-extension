@@ -55,6 +55,13 @@ jobs:
           restore-keys: |
             npm-${{ runner.os }}-
 
+      - name: Inject version from tag into package.json
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "package.json version set to $(jq -r .version package.json)"
+
       - name: Build (${{ matrix.browser }})
         run: mise run build-${{ matrix.browser }}
 

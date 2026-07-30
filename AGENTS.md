@@ -62,9 +62,9 @@ Watches two ecosystems:
 ### Release Process
 
 **New feature/bugfix release** (manual):
-1. Update `version` in `package.json` and `wxt.config.ts` (manifest version)
-2. Create GitHub release with `vX.Y.Z` tag
-3. `release.yml` builds Chrome + Firefox MV3 zips and attaches them to the release
+1. Check the latest release with `gh release list --repo mietzen/ivpn-browser-extension --limit 1` to pick the next SemVer bump
+2. Create a `vX.Y.Z` tag locally and push it (`git tag vX.Y.Z && git push origin vX.Y.Z`)
+3. `release.yml` builds Chrome + Firefox MV3 zips and attaches them to the release. The tag version is injected into `package.json` at build time, so the manifest version inside the zips always matches the tag — `package.json` on main is not manually bumped between releases
 
 **Dependabot bumps** (automated):
 1. Dependabot opens PR
@@ -72,7 +72,7 @@ Watches two ecosystems:
 3. `auto-merge-dependabot.yml` runs every 6 hours (and on manual dispatch). For github-actions PRs, auto-merge is enabled on the next schedule tick. For npm PRs (those touching `package.json` or `package-lock.json`), auto-merge is gated until the PR is at least 14 days old — defence against supply-chain attacks via newly published malicious versions. `gh pr merge --auto --squash` is used; the actual merge happens only when CI is green.
 4. On merge, no new release is cut
 
-**Version format:** `vX.Y.Z` tag → `X.Y.Z` used in zip filenames. `package.json` `version` field is the source of truth for the manifest.
+**Version format:** `vX.Y.Z` tag → `X.Y.Z` used in zip filenames and injected into `package.json` at build time. The Git tag is the source of truth; `package.json` `version` on main is the dev baseline and is not bumped between releases.
 
 ### Secrets
 
