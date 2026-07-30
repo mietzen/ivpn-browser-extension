@@ -18,7 +18,7 @@ jobs:
         run: mise install
 
       - name: Cache npm
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .npm-cache
           key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
