@@ -95,9 +95,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.setup.outputs.version }}"
+          # Pass file paths as positional args. gh release create uses the
+          # basename of each path as the asset name — no need for a
+          # `file#name` syntax (that's the web upload API, not gh).
           gh release create "v${VERSION}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "v${VERSION}" \
             --generate-notes \
-            "dist/ivpn-companion-community-chrome-${VERSION}.zip#ivpn-companion-community-chrome-${VERSION}.zip" \
-            "dist/ivpn-companion-community-firefox-${VERSION}.zip#ivpn-companion-community-firefox-${VERSION}.zip"
+            "dist/ivpn-companion-community-chrome-${VERSION}.zip" \
+            "dist/ivpn-companion-community-firefox-${VERSION}.zip"

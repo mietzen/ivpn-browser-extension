@@ -1,0 +1,66 @@
+name: E2E
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install mise
+        run: curl -fsSL https://mise.run | sh
+
+      - name: Install Node
+        run: mise install
+
+      - name: Cache npm
+        uses: actions/cache@v6
+        with:
+          path: .npm-cache
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: mise exec -- npm ci
+
+      - name: Cache Playwright browsers
+        id: cache-pw
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('tests/e2e/playwright.config.ts', 'package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-
+
+      - name: Install Playwright browsers
+        if: steps.cache-pw.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Build extension
+        run: |
+          npm run build:chrome
+          npm run build:firefox
+
+      - name: Run Playwright
+        run: npx playwright test --project=${{ matrix.browser }}
+        env:
+          CI: 'true'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7

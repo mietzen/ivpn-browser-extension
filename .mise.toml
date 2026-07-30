@@ -34,6 +34,21 @@ description = "Run vitest in watch mode (local only)"
 depends = ["bootstrap"]
 run = "npm run test:watch"
 
+[tasks.test-e2e]
+description = "Run Playwright E2E suite against both browsers (requires built .output/)"
+depends = ["bootstrap"]
+run = "npm run test:e2e"
+
+[tasks.test-e2e-headed]
+description = "Run Playwright E2E with browser visible (local debugging)"
+depends = ["bootstrap"]
+run = "npm run test:e2e:headed"
+
+[tasks.test-e2e-ui]
+description = "Run Playwright E2E in UI mode (local debugging)"
+depends = ["bootstrap"]
+run = "npm run test:e2e:ui"
+
 [tasks.build-chrome]
 description = "Build Chrome MV3 extension into .output/chrome-mv3"
 depends = ["bootstrap"]

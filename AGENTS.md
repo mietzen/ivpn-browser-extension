@@ -50,6 +50,7 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | PR to main | Install mise → Node 24 → `actions/cache` npm → `mise run lint/compile/test/build-chrome/build-firefox` → upload zip artifacts |
+| `e2e.yml` | PR to main | Install mise → Node 24 → build both browsers → cache + run Playwright (chromium + firefox matrix) → upload report on failure |
 | `release.yml` | `v*` tag push | Install mise → Node 24 → `actions/cache` npm → matrix `mise run build-<browser>` → `gh release create` (first-party) |
 | `auto-merge-dependabot.yml` | Schedule (every 6h) + manual | Enables auto-merge via GitHub App token. 14-day cooldown for npm PRs (package.json / package-lock.json); github-actions PRs auto-merge on next schedule tick. |
 
@@ -87,7 +88,7 @@ Without `APP_ID` / `APP_PRIVATE_KEY`, the auto-merge workflow fails open — dep
 ## Testing
 
 ```bash
-# Unit tests (32 tests, mocked fixtures, no network)
+# Unit tests (33 tests, mocked fixtures, no network)
 mise run test
 # (equivalent: npm test)
 
@@ -101,9 +102,15 @@ mise run compile
 
 # Full PR sequence
 mise run ci
+
+# E2E (Playwright, requires built .output/ — run build first)
+npm run build:chrome
+npm run build:firefox
+mise run test-e2e
+# UI mode for local debugging: mise run test-e2e-ui
 ```
 
-All test/build/lint commands are exposed as mise tasks in `.mise.toml` and shared between local dev and CI. The npm cache lives at `.npm-cache/` (project-local, gitignored) per `.npmrc`.
+All test/build/lint commands are exposed as mise tasks in `.mise.toml` and shared between local dev and CI. The npm cache lives at `.npm-cache/` (project-local, gitignored) per `.npmrc`. The E2E suite lives in `tests/e2e/` (Playwright) and mocks the IVPN API at the network layer — no live tunnel required. See `tests/e2e/README.md` for details.
 
 Test fixtures in `tests/fixtures/` are captured from the live IVPN endpoints. CI never makes live API calls.
 

@@ -19,3 +19,8 @@ ivpn-desktop-app/
 # Build artifacts
 *.zip
 *.xpi
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
