@@ -51,7 +51,7 @@ jobs:
           zip -r ../../ivpn-companion-community-firefox-${{ github.sha }}.zip .
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: extension-builds
           path: |
