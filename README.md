@@ -25,7 +25,7 @@ The extension uses two IVPN public HTTPS endpoints (no auth required):
 
 # Development
 
-**Minimum required Node version: 20**
+**Minimum required Node version: 24**
 
 ## Install
 

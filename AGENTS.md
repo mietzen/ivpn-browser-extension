@@ -48,7 +48,7 @@
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR to main | npm ci → lint → compile → test → build both browsers → upload zip artifacts |
+| `ci.yml` | PR to main | npm ci → lint → compile → test → build both browsers → upload zip artifacts (Node 24) |
 | `release.yml` | `v*` tag push | Build both browsers, attach zips to GitHub release |
 | `auto-merge-dependabot.yml` | PR opened (dependabot) | Enable auto-merge via GitHub App token |
 
