@@ -154,10 +154,7 @@ function applySearch(query: string, selectedGateway: string | null): void {
 
 async function onPickServer(gateway: string): Promise<void> {
   currentSettings = await patchSettings({ mode: 'global', globalGateway: gateway });
-  if (currentSettings.mode === 'global') {
-    await sendMessage('history/clear');
-  }
-  await sendMessage('history/clear').catch(() => undefined);
+  await sendMessage('history/recordUse', { gateway });
   const history = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
   renderHistory(history, allServers);
   renderModeButtons(currentSettings.mode);

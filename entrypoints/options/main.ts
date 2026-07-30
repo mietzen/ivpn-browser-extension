@@ -114,7 +114,9 @@ function renderRulesTab(): void {
     els.ruleTableBody.appendChild(tr);
   }
   els.ruleTableBody.querySelectorAll<HTMLButtonElement>('button[data-domain]').forEach((b) => {
-    b.addEventListener('click', () => removeRule(b.dataset.domain!));
+    b.addEventListener('click', () => {
+      if (b.dataset.domain) removeRule(b.dataset.domain);
+    });
   });
 
   els.exclusionList.innerHTML = '';
@@ -124,7 +126,9 @@ function renderRulesTab(): void {
     els.exclusionList.appendChild(li);
   }
   els.exclusionList.querySelectorAll<HTMLButtonElement>('button[data-ex]').forEach((b) => {
-    b.addEventListener('click', () => removeExclusion(b.dataset.ex!));
+    b.addEventListener('click', () => {
+      if (b.dataset.ex) removeExclusion(b.dataset.ex);
+    });
   });
 }
 

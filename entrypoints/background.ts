@@ -10,7 +10,7 @@
  * Wires the storage and proxy layers together. No UI lives here.
  */
 
-import { browser } from 'wxt/browser';
+import { browser, type Browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { getServers, getConnectionStatus } from '../lib/ivpn/client';
 import type { IvpnServer } from '../lib/ivpn/types';
@@ -90,7 +90,7 @@ export default defineBackground(() => {
     await hydrate();
   });
 
-  browser.runtime.onMessage.addListener((message: unknown, _sender: unknown) => {
+  browser.runtime.onMessage.addListener((message: unknown, _sender: Browser.runtime.MessageSender) => {
     return handleMessage(message);
   });
 
@@ -108,6 +108,7 @@ interface MessageMap {
   'webrtc/leakCheck': undefined;
   'webrtc/toggle': { enabled: boolean };
   'history/get': undefined;
+  'history/recordUse': { gateway: string };
   'history/clear': undefined;
   'rules/current': undefined;
 }
@@ -164,18 +165,23 @@ async function handleMessage(message: unknown): Promise<unknown> {
     case 'history/get': {
       return await historyStore.getAll();
     }
+    case 'history/recordUse': {
+      const gateway = (msg.payload as { gateway: string }).gateway;
+      await historyStore.recordUse(gateway);
+      return { ok: true };
+    }
     case 'history/clear': {
       await historyStore.clear();
       return { ok: true };
     }
     case 'rules/current': {
       if (!state) return null;
+      const randomServer =
+        state.settings.mode === 'random' ? pickRandomServer(state.servers) : null;
       return buildRulesFromSettings(
         state.settings,
         state.servers,
-        state.settings.mode === 'random'
-          ? (pickRandomServer(state.servers) ? targetFromServer(pickRandomServer(state.servers)!) : null)
-          : null,
+        randomServer ? targetFromServer(randomServer) : null,
       );
     }
     default:

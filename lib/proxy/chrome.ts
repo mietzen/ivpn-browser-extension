@@ -87,7 +87,6 @@ function FindProxyForURL(url, host) {
 
 export async function setProxyRules(rules: ProxyRules): Promise<void> {
   const pacScript = generatePacScript(rules);
-  const pacDataUrl = `data:application/x-ns-proxy-autoconfig;base64,${btoa(pacScript)}`;
 
   await browser.proxy.settings.set({
     value: {
@@ -96,10 +95,6 @@ export async function setProxyRules(rules: ProxyRules): Promise<void> {
     },
     scope: 'regular',
   });
-
-  // pacDataUrl kept for future use if we switch to a URL-based PAC (Chrome also
-  // accepts `pacScript: { url }`, which is sometimes preferred for inspection).
-  void pacDataUrl;
 }
 
 export async function clearProxyRules(): Promise<void> {

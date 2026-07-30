@@ -6,7 +6,7 @@
  */
 
 import { browser } from 'wxt/browser';
-import type { ProxyRules } from './rules';
+import type { ProxyRules, ProxyTarget } from './rules';
 import { findRuleForHost, isExcluded, resolveTarget } from './rules';
 
 type ProxyRequest = {
@@ -47,7 +47,7 @@ async function handleRequest(details: ProxyRequestDetails): Promise<ProxyInfo> {
   }
 
   const rule = findRuleForHost(host, currentRules.domainRules);
-  let target;
+  let target: ProxyTarget;
   let proxyDns = false;
   if (rule) {
     target = rule.endpoint ? { endpoint: rule.endpoint, label: rule.label } : { endpoint: null, label: 'Direct' };

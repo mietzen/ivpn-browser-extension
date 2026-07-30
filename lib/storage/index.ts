@@ -129,9 +129,7 @@ export function buildRulesFromSettings(
     domainRules: settings.domainRules.filter((r) => {
       if (!r.endpoint) return true;
       return servers.some(
-        (s) =>
-          s.gateway === r.label ||
-          s.gateway.toLowerCase() === r.label.toLowerCase(),
+        (s) => s.gateway.toLowerCase() === r.label.toLowerCase(),
       );
     }),
     exclusions: settings.exclusions,
