@@ -43,7 +43,7 @@ const browserStub = {
 (globalThis as unknown as { browser: typeof browserStub }).browser = browserStub;
 
 // Stub wxt/storage to use an in-memory map.
-vi.mock('wxt/storage', () => {
+vi.mock('wxt/utils/storage', () => {
   const memStore = new Map<string, unknown>();
   return {
     storage: {
@@ -61,4 +61,4 @@ vi.mock('wxt/storage', () => {
 vi.mock('wxt/browser', () => ({ browser: browserStub }));
 
 // Stub wxt/sandbox defineBackground to be a no-op.
-vi.mock('wxt/sandbox', () => ({ defineBackground: (fn: () => void) => fn }));
+vi.mock('wxt/utils/define-background', () => ({ defineBackground: (fn: () => void) => fn }));
