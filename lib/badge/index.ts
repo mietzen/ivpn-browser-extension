@@ -15,8 +15,8 @@ export async function updateBadge(settings: PersistedSettings): Promise<void> {
     setBadgeBackgroundColor: (d: { color: string }) => Promise<void>;
   };
 
-  let text = '';
-  let color = INACTIVE_COLOR;
+  let text: string;
+  let color: string;
 
   if (settings.mode === 'direct' && settings.domainRules.length === 0) {
     text = '';
