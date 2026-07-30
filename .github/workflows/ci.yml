@@ -17,23 +17,28 @@ jobs:
       - name: Install Node
         run: mise install
 
-      - name: Install dependencies
-        run: mise exec -- npm ci
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: .npm-cache
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
 
       - name: Lint
-        run: mise exec -- npm run lint
+        run: mise run lint
 
       - name: Compile
-        run: mise exec -- npm run compile
+        run: mise run compile
 
       - name: Test
-        run: mise exec -- npm test
+        run: mise run test
 
       - name: Build (Chrome)
-        run: mise exec -- npm run build:chrome
+        run: mise run build-chrome
 
       - name: Build (Firefox)
-        run: mise exec -- npm run build:firefox
+        run: mise run build-firefox
 
       - name: Package (Chrome)
         run: |

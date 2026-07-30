@@ -2,6 +2,7 @@ node_modules
 .output
 .wxt
 dist
+.npm-cache
 *.log
 .DS_Store
 .env

@@ -1,2 +1,78 @@
 [tools]
 node = "24"
+
+[env]
+# Adds node_modules/.bin to PATH for all mise tasks (e.g. `eslint .` works
+# without `npx`). Relative to the config file.
+_.path = ["node_modules/.bin"]
+
+# Mirror the tool version in the env so npm/postinstall scripts that probe
+# `process.version` see the same value as `node --version`.
+NODE_VERSION = "24"
+
+[tasks.bootstrap]
+description = "Install npm dependencies into ./node_modules (with local .npm-cache)"
+run = "npm ci"
+
+[tasks.lint]
+description = "Run eslint"
+depends = ["bootstrap"]
+run = "npm run lint"
+
+[tasks.compile]
+description = "Type-check with tsc --noEmit"
+depends = ["bootstrap"]
+run = "npm run compile"
+
+[tasks.test]
+description = "Run vitest once"
+depends = ["bootstrap"]
+run = "npm test"
+
+[tasks.test-watch]
+description = "Run vitest in watch mode (local only)"
+depends = ["bootstrap"]
+run = "npm run test:watch"
+
+[tasks.build-chrome]
+description = "Build Chrome MV3 extension into .output/chrome-mv3"
+depends = ["bootstrap"]
+run = "npm run build:chrome"
+
+[tasks.build-firefox]
+description = "Build Firefox MV3 extension into .output/firefox-mv3"
+depends = ["bootstrap"]
+run = "npm run build:firefox"
+
+[tasks.build]
+description = "Build both browsers"
+depends = ["bootstrap"]
+run = "npm run build:chrome && npm run build:firefox"
+
+[tasks.package]
+description = "Zip both browser builds into release-ready artifacts"
+depends = ["build"]
+run = """
+mkdir -p dist
+cd .output/chrome-mv3 && zip -r ../../dist/ivpn-companion-community-chrome.zip . && cd ../..
+cd .output/firefox-mv3 && zip -r ../../dist/ivpn-companion-community-firefox.zip . && cd ../..
+"""
+
+[tasks.ci]
+description = "Full PR sequence: lint, compile, test, build"
+depends = ["lint", "compile", "test", "build"]
+
+[tasks.dev]
+description = "wxt dev server (default browser)"
+depends = ["bootstrap"]
+run = "npm run dev"
+
+[tasks.dev-firefox]
+description = "wxt dev server for Firefox"
+depends = ["bootstrap"]
+run = "npm run dev:firefox"
+
+[tasks.dev-chrome]
+description = "wxt dev server for Chrome"
+depends = ["bootstrap"]
+run = "npm run dev:chrome"
