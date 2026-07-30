@@ -25,21 +25,36 @@ The extension uses two IVPN public HTTPS endpoints (no auth required):
 
 # Development
 
-**Minimum required Node version: 24**
+**Minimum required Node version: 24** (pinned via mise)
 
 ## Install
 
-[mise](https://mise.jdx.dev/) pins the Node version declared in `.mise.toml`.
+[mise](https://mise.jdx.dev/) manages the local toolchain from `.mise.toml`. The npm cache lives at `.npm-cache/` (project-local, gitignored) per `.npmrc`.
 
 ```shell
 # one-time mise install: https://mise.jdx.dev/getting-started.html
-mise install
-npm install
+mise install              # installs Node 24 from .mise.toml
+mise run bootstrap        # installs npm deps into ./node_modules
 ```
+
+After bootstrap, every CI task is also exposed as a mise task and can be run locally with the same command the workflow uses:
+
+```shell
+mise run lint
+mise run compile
+mise run test
+mise run build           # builds both browsers
+mise run build-chrome    # chrome only
+mise run build-firefox   # firefox only
+mise run ci              # full PR sequence: lint + compile + test + build
+mise run package         # zip both builds into ./dist
+```
+
+`bootstrap` is a transitive dependency of every task, so any `mise run <task>` also installs npm deps if they're missing. No separate `npm install` step needed.
 
 ## Load unpacked
 
-After `npm run dev` finishes, load the unpacked extension from `.output/<browser>-dev`.
+After `mise run dev` finishes, load the unpacked extension from `.output/<browser>-dev`.
 
 ### Firefox
 
@@ -58,27 +73,22 @@ After `npm run dev` finishes, load the unpacked extension from `.output/<browser
 
 ```shell
 # Chrome
-npm run build:chrome
+mise run build-chrome
 # Firefox
-npm run build:firefox
+mise run build-firefox
 # Both + zip
-npm run zip:chrome
-npm run zip:firefox
+mise run build
+mise run package
 ```
 
-Output is in `.output/<browser>-mv3/`.
+Output is in `.output/<browser>-mv3/`. Zips land in `./dist/`.
 
 # Test
 
 ```shell
-# Unit tests
-npm test
-
-# Lint
-npm run lint
-
-# Type check
-npm run compile
+mise run test
+mise run lint
+mise run compile
 ```
 
 CI runs all three on every pull request to `main`. See `.github/workflows/ci.yml`.

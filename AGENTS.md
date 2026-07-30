@@ -49,8 +49,8 @@
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR to main | Install mise → Node 24 → npm ci → lint → compile → test → build both browsers → upload zip artifacts |
-| `release.yml` | `v*` tag push | Install mise → Node 24 → build both browsers → `gh release create` (first-party) |
+| `ci.yml` | PR to main | Install mise → Node 24 → `actions/cache` npm → `mise run lint/compile/test/build-chrome/build-firefox` → upload zip artifacts |
+| `release.yml` | `v*` tag push | Install mise → Node 24 → `actions/cache` npm → matrix `mise run build-<browser>` → `gh release create` (first-party) |
 | `auto-merge-dependabot.yml` | PR opened (dependabot) | Enable auto-merge via GitHub App token |
 
 ### Dependabot
@@ -88,22 +88,36 @@ Without `APP_ID` / `APP_PRIVATE_KEY`, the auto-merge workflow fails open — dep
 
 ```bash
 # Unit tests (32 tests, mocked fixtures, no network)
-npm test
+mise run test
+# (equivalent: npm test)
 
 # Lint
-npm run lint
+mise run lint
+# (equivalent: npm run lint)
 
 # Type check
-npm run compile
+mise run compile
+# (equivalent: npm run compile)
+
+# Full PR sequence
+mise run ci
 ```
+
+All test/build/lint commands are exposed as mise tasks in `.mise.toml` and shared between local dev and CI. The npm cache lives at `.npm-cache/` (project-local, gitignored) per `.npmrc`.
 
 Test fixtures in `tests/fixtures/` are captured from the live IVPN endpoints. CI never makes live API calls.
 
 ### Local development
 
-[mise](https://mise.jdx.dev/) pins Node 24 via `.mise.toml`. Install once, then `mise install` to provision the toolchain. CI uses the same `.mise.toml` (installed via `curl -fsSL https://mise.run | sh`), so local and CI run on identical tool versions.
+```shell
+mise install              # tool versions (Node 24)
+mise run bootstrap        # npm ci into ./node_modules
+mise run ci               # full CI sequence locally
+```
 
-CI deliberately avoids third-party actions where possible — only first-party (`actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`) and the `gh` CLI for release creation.
+`bootstrap` is a transitive dependency of every real-work task, so `mise run lint` will run `npm ci` first if `node_modules` is missing. No separate `npm install` step needed locally.
+
+CI deliberately avoids third-party actions where possible — only first-party (`actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`, `actions/cache`) and the `gh` CLI for release creation. The npm cache is persisted across CI runs via `actions/cache@v4` keyed on `package-lock.json`.
 
 ## Coding Conventions
 

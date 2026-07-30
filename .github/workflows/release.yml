@@ -47,11 +47,16 @@ jobs:
       - name: Install Node
         run: mise install
 
-      - name: Install dependencies
-        run: mise exec -- npm ci
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: .npm-cache
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
 
       - name: Build (${{ matrix.browser }})
-        run: mise exec -- npm run build:${{ matrix.browser }}
+        run: mise run build-${{ matrix.browser }}
 
       - name: Package (${{ matrix.browser }})
         run: |
