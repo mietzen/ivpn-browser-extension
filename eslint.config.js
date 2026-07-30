@@ -87,6 +87,9 @@ export default [
       'dist/**',
       'mullvad-browser-extension/**',
       'ivpn-desktop-app/**',
+      'tests/e2e/**',
+      'playwright-report/**',
+      'test-results/**',
     ],
   },
 ];

@@ -137,7 +137,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
       const servers = await getServersWithCache(true);
       if (state) state.servers = servers;
       await pushCurrentRules();
-      return { count: servers.length, fetchedAt: (await serverCacheStore.get())?.fetchedAt };
+      return { servers, count: servers.length, fetchedAt: (await serverCacheStore.get())?.fetchedAt };
     }
     case 'connection/status': {
       try {

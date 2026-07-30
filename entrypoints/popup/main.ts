@@ -44,9 +44,14 @@ async function loadSettings(): Promise<PersistedSettings> {
 }
 
 async function loadServers(): Promise<IvpnServer[]> {
-  const cache = await sendMessage<{ servers?: IvpnServer[] }>('servers/refresh');
-  if ('error' in cache) return [];
-  return (cache as unknown as ServersResponse).servers ?? [];
+  try {
+    const cache = await sendMessage<{ servers?: IvpnServer[]; error?: string }>('servers/refresh');
+    if ('error' in cache) return [];
+    return (cache as unknown as ServersResponse).servers ?? [];
+  } catch {
+    // Network blips / background hiccups should not break popup init.
+    return [];
+  }
 }
 
 async function patchSettings(patch: Partial<PersistedSettings>): Promise<PersistedSettings> {
