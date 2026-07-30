@@ -24,3 +24,4 @@ ivpn-desktop-app/
 test-results/
 playwright-report/
 playwright/.cache/
+screenshot.png

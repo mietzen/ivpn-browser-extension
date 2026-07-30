@@ -22,6 +22,24 @@ export default defineConfig({
     ],
     host_permissions: ['<all_urls>'],
 
+    action: {
+      default_title: 'IVPN Companion (Community)',
+      default_popup: 'popup.html',
+      default_icon: {
+        16: 'icons/icon-16.png',
+        32: 'icons/icon-32.png',
+        48: 'icons/icon-48.png',
+        128: 'icons/icon-128.png',
+      },
+    },
+
+    icons: {
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+      48: 'icons/icon-48.png',
+      128: 'icons/icon-128.png',
+    },
+
     ...(browser === 'firefox' && {
       browser_specific_settings: {
         gecko: {

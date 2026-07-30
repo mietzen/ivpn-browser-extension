@@ -10,14 +10,38 @@ import type { PersistedSettings, ServerHistoryEntry } from '~/lib/storage';
 
 type Mode = 'direct' | 'global' | 'random';
 
+interface StatusEl {
+  panel: HTMLElement;
+  headline: HTMLElement;
+  ipRow: HTMLElement;
+  ip: HTMLElement;
+  locRow: HTMLElement;
+  loc: HTMLElement;
+  sep: HTMLElement;
+  sep2: HTMLElement;
+  tunnelRow: HTMLElement;
+  tunnel: HTMLElement;
+  refresh: HTMLButtonElement;
+}
+
+const status = (() => {
+  const panel = document.getElementById('status-panel') as HTMLElement;
+  return {
+    panel,
+    headline: document.getElementById('status-headline') as HTMLElement,
+    ipRow: document.getElementById('status-ip-row') as HTMLElement,
+    ip: document.getElementById('status-ip') as HTMLElement,
+    locRow: document.getElementById('status-loc-row') as HTMLElement,
+    loc: document.getElementById('status-loc') as HTMLElement,
+    sep: document.getElementById('status-sep') as HTMLElement,
+    sep2: document.getElementById('status-sep2') as HTMLElement,
+    tunnelRow: document.getElementById('status-tunnel-row') as HTMLElement,
+    tunnel: document.getElementById('status-tunnel') as HTMLElement,
+    refresh: document.getElementById('status-refresh') as HTMLButtonElement,
+  } satisfies StatusEl;
+})();
+
 const els = {
-  statusValue: document.getElementById('status-value') as HTMLSpanElement,
-  statusIp: document.getElementById('status-ip') as HTMLSpanElement,
-  statusIpRow: document.getElementById('status-ip-row') as HTMLDivElement,
-  statusLoc: document.getElementById('status-loc') as HTMLSpanElement,
-  statusLocRow: document.getElementById('status-loc-row') as HTMLDivElement,
-  statusTunnel: document.getElementById('status-tunnel') as HTMLSpanElement,
-  statusRefresh: document.getElementById('status-refresh') as HTMLButtonElement,
   openOptions: document.getElementById('open-options') as HTMLButtonElement,
   modeButtons: document.querySelectorAll<HTMLButtonElement>('.mode-btn'),
   pickerSearch: document.getElementById('picker-search') as HTMLInputElement,
@@ -49,7 +73,6 @@ async function loadServers(): Promise<IvpnServer[]> {
     if ('error' in cache) return [];
     return (cache as unknown as ServersResponse).servers ?? [];
   } catch {
-    // Network blips / background hiccups should not break popup init.
     return [];
   }
 }
@@ -58,25 +81,41 @@ async function patchSettings(patch: Partial<PersistedSettings>): Promise<Persist
   return sendMessage<PersistedSettings>('settings/patch', patch);
 }
 
+function setStatus(state: 'checking' | 'vpn' | 'no-vpn' | 'error', headline: string, ip?: string, location?: string, tunnel?: string): void {
+  status.panel.dataset.state = state;
+  status.headline.textContent = headline;
+
+  const hasIp = !!ip;
+  const hasLoc = !!location;
+  const hasTunnel = !!tunnel;
+
+  status.ipRow.hidden = !hasIp;
+  if (hasIp) status.ip.textContent = ip!;
+  status.sep.hidden = !(hasIp && hasLoc);
+  status.locRow.hidden = !hasLoc;
+  if (hasLoc) status.loc.textContent = location!;
+  status.sep2.hidden = !(hasLoc && hasTunnel);
+  status.tunnelRow.hidden = !hasTunnel;
+  if (hasTunnel) status.tunnel.textContent = tunnel!;
+}
+
 async function refreshStatus(): Promise<void> {
-  els.statusValue.textContent = 'Checking…';
-  els.statusIpRow.hidden = true;
-  els.statusLocRow.hidden = true;
-  const res = (await sendMessage<{ ok: boolean; status?: { ip_address: string; country: string; city: string; country_code: string; isIvpnServer: boolean }; error?: string }>(
-    'connection/status',
-  ));
+  setStatus('checking', 'Checking…');
+  const res = await sendMessage<{
+    ok: boolean;
+    status?: { ip_address: string; country: string; city: string; country_code: string; isIvpnServer: boolean };
+    error?: string;
+  }>('connection/status');
   if (!res.ok || !res.status) {
-    els.statusValue.textContent = res.error ?? 'Unavailable';
-    els.statusTunnel.textContent = 'Tunnel unreachable?';
+    setStatus('error', res.error ?? 'Unavailable');
     return;
   }
   const s = res.status;
-  els.statusValue.textContent = s.isIvpnServer ? 'VPN' : 'Not VPN';
-  els.statusIp.textContent = s.ip_address;
-  els.statusIpRow.hidden = false;
-  els.statusLoc.textContent = `${s.country} · ${s.city}`;
-  els.statusLocRow.hidden = false;
-  els.statusTunnel.textContent = s.isIvpnServer ? 'Active' : 'Inactive';
+  if (s.isIvpnServer) {
+    setStatus('vpn', 'Connected via IVPN', s.ip_address, `${s.country} · ${s.city}`, 'Active');
+  } else {
+    setStatus('no-vpn', 'Not connected to IVPN', s.ip_address, `${s.country} · ${s.city}`);
+  }
 }
 
 function renderModeButtons(mode: Mode | 'custom'): void {
@@ -89,8 +128,9 @@ function renderPicker(groups: ServerGroup[], selectedGateway: string | null): vo
   els.pickerList.innerHTML = '';
   if (groups.length === 0) {
     const empty = document.createElement('div');
-    empty.className = 'picker-city';
+    empty.className = 'picker-server';
     empty.textContent = 'No servers match.';
+    empty.style.color = 'var(--fg-faint)';
     els.pickerList.appendChild(empty);
     return;
   }
@@ -120,7 +160,9 @@ function renderPicker(groups: ServerGroup[], selectedGateway: string | null): vo
         left.textContent = server.gateway;
         const right = document.createElement('span');
         right.className = 'load';
-        right.textContent = `load ${Math.round(server.load * 100)}%`;
+        // IVPN API returns `load` as a percentage (e.g. 25.96), not a
+        // ratio. Display as-is with one decimal place.
+        right.textContent = `${server.load.toFixed(1)}%`;
         row.appendChild(left);
         row.appendChild(right);
         row.addEventListener('click', () => onPickServer(server.gateway));
@@ -145,7 +187,8 @@ function renderHistory(history: Record<string, ServerHistoryEntry>, servers: Ivp
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'history-chip';
-    chip.textContent = `${server.gateway} · ${server.city}`;
+    chip.textContent = server.gateway;
+    chip.title = `${server.city} · ${server.load.toFixed(1)}%`;
     chip.addEventListener('click', () => onPickServer(server.gateway));
     els.historyList.appendChild(chip);
   }
@@ -172,6 +215,14 @@ async function onModeChange(mode: Mode | 'custom'): Promise<void> {
   applySearch(els.pickerSearch.value, currentSettings.globalGateway);
 }
 
+async function openOptions(): Promise<void> {
+  try {
+    await browser.runtime.openOptionsPage();
+  } catch (err) {
+    console.error('openOptionsPage failed:', err);
+  }
+}
+
 async function init(): Promise<void> {
   currentSettings = await loadSettings();
   allServers = await loadServers();
@@ -187,13 +238,11 @@ async function init(): Promise<void> {
   els.pickerSearch.addEventListener('input', () => {
     applySearch(els.pickerSearch.value, currentSettings?.globalGateway ?? null);
   });
-  els.statusRefresh.addEventListener('click', () => {
+  status.refresh.addEventListener('click', () => {
     refreshStatus().catch((err) => console.error(err));
   });
   els.openOptions.addEventListener('click', () => {
-    browser.runtime.sendMessage({ type: 'ui/openOptions' }).catch(() => {
-      browser.runtime.openOptionsPage().catch(() => undefined);
-    });
+    openOptions().catch((err) => console.error(err));
   });
 
   refreshStatus().catch((err) => console.error(err));
