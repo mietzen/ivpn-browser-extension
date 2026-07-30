@@ -90,17 +90,31 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Create release
+      - name: Upload assets to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.setup.outputs.version }}"
-          # Pass file paths as positional args. gh release create uses the
-          # basename of each path as the asset name — no need for a
-          # `file#name` syntax (that's the web upload API, not gh).
-          gh release create "v${VERSION}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "v${VERSION}" \
-            --generate-notes \
-            "dist/ivpn-companion-community-chrome-${VERSION}.zip" \
-            "dist/ivpn-companion-community-firefox-${VERSION}.zip"
+          TAG="v${VERSION}"
+          # Idempotent: upload assets if the release exists, otherwise
+          # create it. This supports both flows:
+          #   1. Create the release in the web UI (draft or published) and
+          #      let the workflow attach the built artifacts.
+          #   2. Push the tag and let the workflow create the release with
+          #      assets in one shot.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG exists — uploading assets with --clobber."
+            gh release upload "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber \
+              "dist/ivpn-companion-community-chrome-${VERSION}.zip" \
+              "dist/ivpn-companion-community-firefox-${VERSION}.zip"
+          else
+            echo "Release $TAG does not exist — creating it with assets."
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --generate-notes \
+              "dist/ivpn-companion-community-chrome-${VERSION}.zip" \
+              "dist/ivpn-companion-community-firefox-${VERSION}.zip"
+          fi
