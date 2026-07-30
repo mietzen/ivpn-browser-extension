@@ -29,7 +29,11 @@ The extension uses two IVPN public HTTPS endpoints (no auth required):
 
 ## Install
 
+[mise](https://mise.jdx.dev/) pins the Node version declared in `.mise.toml`.
+
 ```shell
+# one-time mise install: https://mise.jdx.dev/getting-started.html
+mise install
 npm install
 ```
 

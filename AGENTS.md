@@ -9,6 +9,7 @@
 - **UI:** Vanilla TS, no framework
 - **Test framework:** vitest
 - **Lint:** eslint
+- **Runtime manager:** [mise](https://mise.jdx.dev/) (pins Node 24 via `.mise.toml`)
 - **License:** MIT
 
 ## Repository Structure
@@ -48,8 +49,8 @@
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR to main | npm ci → lint → compile → test → build both browsers → upload zip artifacts (Node 24) |
-| `release.yml` | `v*` tag push | Build both browsers, attach zips to GitHub release |
+| `ci.yml` | PR to main | Install mise → Node 24 → npm ci → lint → compile → test → build both browsers → upload zip artifacts |
+| `release.yml` | `v*` tag push | Install mise → Node 24 → build both browsers → `gh release create` (first-party) |
 | `auto-merge-dependabot.yml` | PR opened (dependabot) | Enable auto-merge via GitHub App token |
 
 ### Dependabot
@@ -97,6 +98,12 @@ npm run compile
 ```
 
 Test fixtures in `tests/fixtures/` are captured from the live IVPN endpoints. CI never makes live API calls.
+
+### Local development
+
+[mise](https://mise.jdx.dev/) pins Node 24 via `.mise.toml`. Install once, then `mise install` to provision the toolchain. CI uses the same `.mise.toml` (installed via `curl -fsSL https://mise.run | sh`), so local and CI run on identical tool versions.
+
+CI deliberately avoids third-party actions where possible — only first-party (`actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`) and the `gh` CLI for release creation.
 
 ## Coding Conventions
 
