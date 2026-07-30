@@ -51,7 +51,7 @@
 |----------|---------|---------|
 | `ci.yml` | PR to main | Install mise → Node 24 → `actions/cache` npm → `mise run lint/compile/test/build-chrome/build-firefox` → upload zip artifacts |
 | `release.yml` | `v*` tag push | Install mise → Node 24 → `actions/cache` npm → matrix `mise run build-<browser>` → `gh release create` (first-party) |
-| `auto-merge-dependabot.yml` | PR opened (dependabot) | Enable auto-merge via GitHub App token |
+| `auto-merge-dependabot.yml` | Schedule (every 6h) + manual | Enables auto-merge via GitHub App token. 14-day cooldown for npm PRs (package.json / package-lock.json); github-actions PRs auto-merge on next schedule tick. |
 
 ### Dependabot
 
@@ -68,8 +68,8 @@ Watches two ecosystems:
 
 **Dependabot bumps** (automated):
 1. Dependabot opens PR
-2. `auto-merge-dependabot.yml` enables auto-merge (squash)
-3. `ci.yml` runs PR checks
+2. `ci.yml` runs PR checks
+3. `auto-merge-dependabot.yml` runs every 6 hours (and on manual dispatch). For github-actions PRs, auto-merge is enabled on the next schedule tick. For npm PRs (those touching `package.json` or `package-lock.json`), auto-merge is gated until the PR is at least 14 days old — defence against supply-chain attacks via newly published malicious versions. `gh pr merge --auto --squash` is used; the actual merge happens only when CI is green.
 4. On merge, no new release is cut
 
 **Version format:** `vX.Y.Z` tag → `X.Y.Z` used in zip filenames. `package.json` `version` field is the source of truth for the manifest.
