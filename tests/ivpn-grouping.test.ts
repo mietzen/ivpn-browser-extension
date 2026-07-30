@@ -12,8 +12,12 @@ import {
 import type { IvpnServer } from '~/lib/ivpn/types';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const loadServers = (): IvpnServer[] =>
-  JSON.parse(readFileSync(join(__dirname, 'fixtures', 'servers-stats.json'), 'utf-8')) as IvpnServer[];
+const loadServers = (): IvpnServer[] => {
+  const raw = JSON.parse(
+    readFileSync(join(__dirname, 'fixtures', 'servers-stats.json'), 'utf-8'),
+  ) as { servers: IvpnServer[] };
+  return raw.servers;
+};
 
 describe('ivpn/grouping', () => {
   it('filters out inactive and in-maintenance servers', () => {

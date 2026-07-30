@@ -57,7 +57,7 @@ async function refreshStatus(): Promise<void> {
   els.statusValue.textContent = 'Checking…';
   els.statusIpRow.hidden = true;
   els.statusLocRow.hidden = true;
-  const res = (await sendMessage<{ ok: boolean; status?: { ip_address: string; country: string; city: string; country_code: string; is_vpn: boolean }; error?: string }>(
+  const res = (await sendMessage<{ ok: boolean; status?: { ip_address: string; country: string; city: string; country_code: string; isIvpnServer: boolean }; error?: string }>(
     'connection/status',
   ));
   if (!res.ok || !res.status) {
@@ -66,12 +66,12 @@ async function refreshStatus(): Promise<void> {
     return;
   }
   const s = res.status;
-  els.statusValue.textContent = s.is_vpn ? 'VPN' : 'Not VPN';
+  els.statusValue.textContent = s.isIvpnServer ? 'VPN' : 'Not VPN';
   els.statusIp.textContent = s.ip_address;
   els.statusIpRow.hidden = false;
   els.statusLoc.textContent = `${s.country} · ${s.city}`;
   els.statusLocRow.hidden = false;
-  els.statusTunnel.textContent = s.is_vpn ? 'Active' : 'Inactive';
+  els.statusTunnel.textContent = s.isIvpnServer ? 'Active' : 'Inactive';
 }
 
 function renderModeButtons(mode: Mode | 'custom'): void {

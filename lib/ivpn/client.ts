@@ -62,11 +62,12 @@ async function getJson<T>(path: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise
   }
 }
 
-function asArray(raw: unknown): IvpnServer[] {
-  if (!Array.isArray(raw)) {
-    throw new IvpnApiError('Expected array from /v5/servers/stats');
+function asServerList(raw: unknown): IvpnServer[] {
+  if (Array.isArray(raw)) return raw as IvpnServer[];
+  if (raw !== null && typeof raw === 'object' && Array.isArray((raw as { servers?: unknown }).servers)) {
+    return (raw as { servers: IvpnServer[] }).servers;
   }
-  return raw as IvpnServer[];
+  throw new IvpnApiError('Expected array (or { servers: [...] }) from /v5/servers/stats');
 }
 
 function asObject(raw: unknown): IvpnGeoLookup {
@@ -78,7 +79,7 @@ function asObject(raw: unknown): IvpnGeoLookup {
 
 export async function getServers(): Promise<IvpnServer[]> {
   const raw = await getJson<unknown>('/v5/servers/stats');
-  return asArray(raw);
+  return asServerList(raw);
 }
 
 export async function getConnectionStatus(): Promise<IvpnGeoLookup> {

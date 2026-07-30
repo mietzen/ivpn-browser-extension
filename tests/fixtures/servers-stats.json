@@ -1,68 +1,125 @@
-[
-  {
-    "gateway": "us-nyc-wg-001",
-    "country_code": "US",
-    "country": "United States",
-    "city": "New York",
-    "load": 0.32,
-    "status": "online",
-    "is_active": true,
-    "in_maintenance": false,
-    "socks5": "socks5.us-nyc-wg-001.gw.ivpn.net:10.1.0.1"
-  },
-  {
-    "gateway": "us-nyc-wg-002",
-    "country_code": "US",
-    "country": "United States",
-    "city": "New York",
-    "load": 0.41,
-    "status": "online",
-    "is_active": true,
-    "in_maintenance": false,
-    "socks5": "socks5.us-nyc-wg-002.gw.ivpn.net:10.1.0.2"
-  },
-  {
-    "gateway": "us-sfo-wg-001",
-    "country_code": "US",
-    "country": "United States",
-    "city": "San Francisco",
-    "load": 0.18,
-    "status": "online",
-    "is_active": true,
-    "in_maintenance": false,
-    "socks5": "socks5.us-sfo-wg-001.gw.ivpn.net:10.1.1.1"
-  },
-  {
-    "gateway": "de-fra-wg-001",
-    "country_code": "DE",
-    "country": "Germany",
-    "city": "Frankfurt",
-    "load": 0.62,
-    "status": "online",
-    "is_active": true,
-    "in_maintenance": false,
-    "socks5": "socks5.de-fra-wg-001.gw.ivpn.net:10.2.0.1"
-  },
-  {
-    "gateway": "de-fra-wg-maint",
-    "country_code": "DE",
-    "country": "Germany",
-    "city": "Frankfurt",
-    "load": 0.0,
-    "status": "offline",
-    "is_active": true,
-    "in_maintenance": true,
-    "socks5": "socks5.de-fra-wg-maint.gw.ivpn.net:10.2.0.2"
-  },
-  {
-    "gateway": "jp-tok-wg-001",
-    "country_code": "JP",
-    "country": "Japan",
-    "city": "Tokyo",
-    "load": 0.0,
-    "status": "offline",
-    "is_active": false,
-    "in_maintenance": false,
-    "socks5": "socks5.jp-tok-wg-001.gw.ivpn.net:10.3.0.1"
-  }
-]
+{
+  "servers": [
+    {
+      "gateway": "us-nyc-wg-001",
+      "hostnames": { "openvpn": "us-nyc-wg-001.gw.ivpn.net", "wireguard": "us-nyc-wg-001.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "198.51.100.10", "hostname": "us-nyc-wg-001.gw.ivpn.net" },
+        "wireguard": { "host": "198.51.100.11", "hostname": "us-nyc-wg-001.wg.ivpn.net" }
+      },
+      "is_active": true,
+      "in_maintenance": false,
+      "status": 0,
+      "country_code": "US",
+      "country": "United States",
+      "city": "New York",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "isp": "Example ISP",
+      "load": 0.32,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.us-nyc-wg-001.gw.ivpn.net:10.1.0.1"
+    },
+    {
+      "gateway": "us-nyc-wg-002",
+      "hostnames": { "openvpn": "us-nyc-wg-002.gw.ivpn.net", "wireguard": "us-nyc-wg-002.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "198.51.100.20", "hostname": "us-nyc-wg-002.gw.ivpn.net" },
+        "wireguard": { "host": "198.51.100.21", "hostname": "us-nyc-wg-002.wg.ivpn.net" }
+      },
+      "is_active": true,
+      "in_maintenance": false,
+      "status": 0,
+      "country_code": "US",
+      "country": "United States",
+      "city": "New York",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "isp": "Example ISP",
+      "load": 0.41,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.us-nyc-wg-002.gw.ivpn.net:10.1.0.2"
+    },
+    {
+      "gateway": "us-sfo-wg-001",
+      "hostnames": { "openvpn": "us-sfo-wg-001.gw.ivpn.net", "wireguard": "us-sfo-wg-001.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "198.51.100.30", "hostname": "us-sfo-wg-001.gw.ivpn.net" },
+        "wireguard": { "host": "198.51.100.31", "hostname": "us-sfo-wg-001.wg.ivpn.net" }
+      },
+      "is_active": true,
+      "in_maintenance": false,
+      "status": 0,
+      "country_code": "US",
+      "country": "United States",
+      "city": "San Francisco",
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "isp": "Example ISP",
+      "load": 0.18,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.us-sfo-wg-001.gw.ivpn.net:10.1.1.1"
+    },
+    {
+      "gateway": "de-fra-wg-001",
+      "hostnames": { "openvpn": "de-fra-wg-001.gw.ivpn.net", "wireguard": "de-fra-wg-001.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "203.0.113.10", "hostname": "de-fra-wg-001.gw.ivpn.net" },
+        "wireguard": { "host": "203.0.113.11", "hostname": "de-fra-wg-001.wg.ivpn.net" }
+      },
+      "is_active": true,
+      "in_maintenance": false,
+      "status": 0,
+      "country_code": "DE",
+      "country": "Germany",
+      "city": "Frankfurt",
+      "latitude": 50.1109,
+      "longitude": 8.6821,
+      "isp": "Example ISP",
+      "load": 0.62,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.de-fra-wg-001.gw.ivpn.net:10.2.0.1"
+    },
+    {
+      "gateway": "de-fra-wg-maint",
+      "hostnames": { "openvpn": "de-fra-wg-maint.gw.ivpn.net", "wireguard": "de-fra-wg-maint.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "203.0.113.20", "hostname": "de-fra-wg-maint.gw.ivpn.net" },
+        "wireguard": { "host": "203.0.113.21", "hostname": "de-fra-wg-maint.wg.ivpn.net" }
+      },
+      "is_active": true,
+      "in_maintenance": true,
+      "status": 1,
+      "country_code": "DE",
+      "country": "Germany",
+      "city": "Frankfurt",
+      "latitude": 50.1109,
+      "longitude": 8.6821,
+      "isp": "Example ISP",
+      "load": 0.0,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.de-fra-wg-maint.gw.ivpn.net:10.2.0.2"
+    },
+    {
+      "gateway": "jp-tok-wg-001",
+      "hostnames": { "openvpn": "jp-tok-wg-001.gw.ivpn.net", "wireguard": "jp-tok-wg-001.wg.ivpn.net" },
+      "hosts": {
+        "openvpn": { "host": "203.0.113.30", "hostname": "jp-tok-wg-001.gw.ivpn.net" },
+        "wireguard": { "host": "203.0.113.31", "hostname": "jp-tok-wg-001.wg.ivpn.net" }
+      },
+      "is_active": false,
+      "in_maintenance": false,
+      "status": 2,
+      "country_code": "JP",
+      "country": "Japan",
+      "city": "Tokyo",
+      "latitude": 35.6762,
+      "longitude": 139.6503,
+      "isp": "Example ISP",
+      "load": 0.0,
+      "protocols": ["wireguard", "openvpn"],
+      "socks5": "socks5.jp-tok-wg-001.gw.ivpn.net:10.3.0.1"
+    }
+  ],
+  "config": {}
+}

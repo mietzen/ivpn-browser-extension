@@ -25,16 +25,24 @@ function mockJsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('ivpn/client', () => {
-  it('getServers parses the flat array response', async () => {
-    const fixture = fixtures('servers-stats.json') as IvpnServer[];
+  it('getServers unwraps the { servers: [...] } envelope response', async () => {
+    const fixture = fixtures('servers-stats.json') as { servers: IvpnServer[] };
+    globalThis.fetch = (async () => mockJsonResponse(fixture)) as typeof fetch;
+
+    const servers = await getServers();
+    expect(servers).toHaveLength(fixture.servers.length);
+    expect(servers[0]?.gateway).toBe('us-nyc-wg-001');
+  });
+
+  it('getServers accepts a bare array (backwards compat)', async () => {
+    const fixture = (fixtures('servers-stats.json') as { servers: IvpnServer[] }).servers;
     globalThis.fetch = (async () => mockJsonResponse(fixture)) as typeof fetch;
 
     const servers = await getServers();
     expect(servers).toHaveLength(fixture.length);
-    expect(servers[0]?.gateway).toBe('us-nyc-wg-001');
   });
 
-  it('getServers throws on non-array response', async () => {
+  it('getServers throws when neither array nor envelope', async () => {
     globalThis.fetch = (async () => mockJsonResponse({ not: 'array' })) as typeof fetch;
     await expect(getServers()).rejects.toBeInstanceOf(IvpnApiError);
   });
@@ -46,7 +54,7 @@ describe('ivpn/client', () => {
     const status = await getConnectionStatus();
     expect(status.ip_address).toBe('203.0.113.42');
     expect(status.country_code).toBe('US');
-    expect(status.is_vpn).toBe(true);
+    expect(status.isIvpnServer).toBe(true);
   });
 
   it('getConnectionStatus throws on non-object response', async () => {
