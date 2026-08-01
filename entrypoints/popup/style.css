@@ -222,6 +222,10 @@ body {
   flex-direction: column;
 }
 
+.combobox-popover[hidden] {
+  display: none;
+}
+
 .combobox-quickpick {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
