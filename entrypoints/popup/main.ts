@@ -13,8 +13,8 @@ import { sendMessage, loadSettings, loadServers } from '~/lib/messages';
 import {
   ServerCombobox,
   SPECIAL_VALUES,
+  buildGlobalOptions,
   buildCurrentSiteOptions,
-  type ComboboxOption,
 } from '~/lib/ui/server-combobox';
 
 interface StatusEl {
@@ -106,10 +106,7 @@ async function refreshStatus(): Promise<void> {
   }
 }
 
-function reloadComboboxes(
-  history: Record<string, ServerHistoryEntry>,
-  _currentSettingsRef: PersistedSettings,
-): void {
+function reloadComboboxes(history: Record<string, ServerHistoryEntry>): void {
   if (!currentSettings) return;
 
   const global = currentSettings.global;
@@ -119,15 +116,8 @@ function reloadComboboxes(
       : global.kind === 'random'
         ? SPECIAL_VALUES.globalRandom
         : SPECIAL_VALUES.globalSocks5;
-  const globalSpecialOptions: ComboboxOption[] = [
-    { value: SPECIAL_VALUES.globalDirect, label: 'Direct' },
-    { value: SPECIAL_VALUES.globalRandom, label: 'Random' },
-    ...(global.kind === 'socks5'
-      ? [{ value: SPECIAL_VALUES.globalSocks5, label: global.label, disabled: true }]
-      : []),
-  ];
   globalCombo.setOptions({
-    options: globalSpecialOptions,
+    options: buildGlobalOptions(global),
     history,
     servers: allServers,
     placeholder: 'Direct',
@@ -184,7 +174,7 @@ async function onGlobalSelect(value: string, history: Record<string, ServerHisto
     return;
   }
   await applyGlobal(global);
-  reloadComboboxes(history, currentSettings);
+  reloadComboboxes(history);
 }
 
 async function pickGlobalServer(gateway: string): Promise<void> {
@@ -195,7 +185,7 @@ async function pickGlobalServer(gateway: string): Promise<void> {
   await sendMessage('history/recordUse', { gateway });
   const updated = await sendMessage('history/get');
   if (!currentSettings) return;
-  reloadComboboxes(updated, currentSettings);
+  reloadComboboxes(updated);
 }
 
 /**
@@ -295,7 +285,7 @@ async function init(): Promise<void> {
     onOpenChange: (open) => toggleComboboxOpen(open),
   });
 
-  reloadComboboxes(history, currentSettings);
+  reloadComboboxes(history);
 
   els.openOptions.addEventListener('click', () => {
     openOptions().catch((err) => console.error(err));
