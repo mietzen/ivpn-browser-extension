@@ -6,6 +6,7 @@
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '~/lib/ivpn/types';
 import { groupActiveServers } from '~/lib/ivpn/grouping';
+import { parseSocks5Endpoint } from '~/lib/ivpn/client';
 import type { PersistedSettings, ExportPayload } from '~/lib/storage';
 import { exportAll, importAll } from '~/lib/storage';
 import type { DomainRule, GlobalProxy, RuleTarget } from '~/lib/proxy/rules';
@@ -193,9 +194,7 @@ async function addRule(pattern: string, kind: string, server: string, proxyDns: 
   } else {
     const found = servers.find((s) => s.gateway === server);
     if (!found) return;
-    const colon = found.socks5.indexOf(':');
-    const host = colon === -1 ? found.socks5 : found.socks5.slice(0, colon);
-    target = { kind: 'socks5', endpoint: { host, port: 1080 }, label: found.gateway };
+    target = { kind: 'socks5', endpoint: parseSocks5Endpoint(found), label: found.gateway };
   }
   const newRule: DomainRule = { pattern, target, disabled, proxyDns };
   const filtered = settings.domainRules.filter((r) => r.pattern !== newRule.pattern);
@@ -239,9 +238,7 @@ async function setGlobal(value: string): Promise<void> {
   } else {
     const found = servers.find((s) => s.gateway === value);
     if (!found) return;
-    const colon = found.socks5.indexOf(':');
-    const host = colon === -1 ? found.socks5 : found.socks5.slice(0, colon);
-    global = { kind: 'socks5', endpoint: { host, port: 1080 }, label: found.gateway };
+    global = { kind: 'socks5', endpoint: parseSocks5Endpoint(found), label: found.gateway };
   }
   settings = await sendMessage<PersistedSettings>('settings/setGlobal', { global });
   renderProxyTab();

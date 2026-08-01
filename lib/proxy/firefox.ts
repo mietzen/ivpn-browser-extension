@@ -6,6 +6,7 @@
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '../ivpn/types';
 import { parseSocks5Endpoint } from '../ivpn/client';
+import { isEligibleServer } from '../ivpn/grouping';
 import type { GlobalProxy, ProxyRules, RuleTarget, Socks5Endpoint } from './rules';
 import { resolveRuleTarget, findRuleForHost } from './rules';
 import { patternMatches } from './pattern';
@@ -39,7 +40,7 @@ let currentContext: ResolveContext | null = null;
 let listenerRegistered = false;
 
 function randomServer(ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
-  const eligible = ctx.servers.filter((s) => s.is_active && !s.in_maintenance);
+  const eligible = ctx.servers.filter(isEligibleServer);
   if (eligible.length === 0) return null;
   const server = eligible[Math.floor(Math.random() * eligible.length)]!;
   return { endpoint: parseSocks5Endpoint(server), label: server.gateway };
