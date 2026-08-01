@@ -5,6 +5,7 @@
 
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '../ivpn/types';
+import { parseSocks5Endpoint } from '../ivpn/client';
 import type { GlobalProxy, ProxyRules, RuleTarget, Socks5Endpoint } from './rules';
 import { DIRECT_TARGET, isExcluded, findRuleForHost } from './rules';
 import { patternMatches } from './pattern';
@@ -32,7 +33,6 @@ type OnRequestCallback = (details: ProxyRequestDetails) => Promise<ProxyInfo> | 
 export interface ResolveContext {
   rules: ProxyRules;
   servers: IvpnServer[];
-  randomTarget: { endpoint: Socks5Endpoint; label: string } | null;
 }
 
 let currentContext: ResolveContext | null = null;
@@ -45,13 +45,17 @@ function pickRuleTarget(host: string, ctx: ResolveContext): RuleTarget {
   if (ctx.rules.global.kind === 'socks5') {
     return { kind: 'socks5', endpoint: ctx.rules.global.endpoint, label: ctx.rules.global.label };
   }
+  if (ctx.rules.global.kind === 'random') {
+    return { kind: 'random' };
+  }
   return DIRECT_TARGET;
 }
 
 function randomServer(ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
   const eligible = ctx.servers.filter((s) => s.is_active && !s.in_maintenance);
   if (eligible.length === 0) return null;
-  return ctx.randomTarget ?? null;
+  const server = eligible[Math.floor(Math.random() * eligible.length)]!;
+  return { endpoint: parseSocks5Endpoint(server), label: server.gateway };
 }
 
 function resolveEndpoint(target: RuleTarget, ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
@@ -100,7 +104,6 @@ export async function setProxyRules(rules: ProxyRules, servers: IvpnServer[]): P
   currentContext = {
     rules,
     servers,
-    randomTarget: null,
   };
   if (!listenerRegistered) {
     const proxyApi = browser.proxy as unknown as {

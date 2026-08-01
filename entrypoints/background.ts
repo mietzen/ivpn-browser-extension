@@ -43,8 +43,8 @@ async function getServersWithCache(force = false): Promise<IvpnServer[]> {
 async function pushCurrentRules(): Promise<void> {
   if (!state) return;
   const rules = buildRulesFromSettings(state.settings, state.servers);
-  const hasSocks5Global = rules.global.kind === 'socks5';
-  const hasAnySocks5Target = rules.domainRules.some((r) => r.target.kind === 'socks5') || hasSocks5Global;
+  const hasProxyGlobal = rules.global.kind === 'socks5' || rules.global.kind === 'random';
+  const hasAnySocks5Target = rules.domainRules.some((r) => r.target.kind === 'socks5') || hasProxyGlobal;
   if (!hasAnySocks5Target && rules.domainRules.length === 0) {
     await clearProxyRules();
   } else {

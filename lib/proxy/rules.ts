@@ -23,6 +23,7 @@ export interface Socks5Endpoint {
 
 export type GlobalProxy =
   | { kind: 'direct' }
+  | { kind: 'random' }
   | { kind: 'socks5'; endpoint: Socks5Endpoint; label: string };
 
 export type RuleTarget =
@@ -89,9 +90,14 @@ export function resolveRuleTarget(host: string, rules: ProxyRules): RuleTarget {
   if (rules.global.kind === 'socks5') {
     return { kind: 'socks5', endpoint: rules.global.endpoint, label: rules.global.label };
   }
+  if (rules.global.kind === 'random') {
+    return { kind: 'random' };
+  }
   return DIRECT_TARGET;
 }
 
 export function labelForGlobal(global: GlobalProxy): string {
-  return global.kind === 'direct' ? 'Direct' : global.label;
+  if (global.kind === 'direct') return 'Direct';
+  if (global.kind === 'random') return 'Random';
+  return global.label;
 }

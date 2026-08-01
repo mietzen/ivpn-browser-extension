@@ -26,6 +26,9 @@ export async function updateBadge(settings: PersistedSettings): Promise<void> {
   if (settings.global.kind === 'socks5') {
     text = settings.global.label.slice(0, 4).toUpperCase();
     color = ACTIVE_COLOR;
+  } else if (settings.global.kind === 'random') {
+    text = 'R';
+    color = ACTIVE_COLOR;
   } else if (hasActiveOverride(settings)) {
     text = 'R';
     color = ACTIVE_COLOR;

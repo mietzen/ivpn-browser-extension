@@ -12,6 +12,7 @@
 import type { IvpnServer } from '~/lib/ivpn/types';
 import { groupActiveServers, searchGroups, type ServerGroup } from '~/lib/ivpn/grouping';
 import type { ServerHistoryEntry } from '~/lib/storage';
+import type { GlobalProxy } from '~/lib/proxy/rules';
 
 export interface ComboboxOption {
   value: string;
@@ -304,18 +305,19 @@ export class ServerCombobox {
   }
 }
 
-export function buildGlobalOptions(global: { kind: 'direct' } | { kind: 'socks5'; label: string }): ComboboxOption[] {
+export function buildGlobalOptions(global: GlobalProxy): ComboboxOption[] {
   return [
     { value: 'global:direct', label: 'Direct' },
-    { value: 'global:socks5', label: global.kind === 'socks5' ? global.label : 'Server' },
+    { value: 'global:random', label: 'Random' },
+    ...(global.kind === 'socks5' ? [{ value: 'global:socks5', label: global.label, disabled: true }] : []),
   ];
 }
 
-export function buildCurrentSiteOptions(
-  global: { kind: 'direct' } | { kind: 'socks5'; label: string },
-): ComboboxOption[] {
+export function buildCurrentSiteOptions(global: GlobalProxy): ComboboxOption[] {
+  const currentLabel =
+    global.kind === 'socks5' ? global.label : global.kind === 'random' ? 'Random' : 'Direct';
   const opts: ComboboxOption[] = [
-    { value: 'site:inherit', label: 'Inherit from global', hint: global.kind === 'socks5' ? `(current: ${global.label})` : '(current: Direct)' },
+    { value: 'site:inherit', label: 'Inherit from global', hint: `(current: ${currentLabel})` },
     { value: 'site:direct', label: 'Direct' },
     { value: 'site:random', label: 'Random' },
   ];
@@ -327,6 +329,7 @@ export function buildCurrentSiteOptions(
 
 export const SPECIAL_VALUES = {
   globalDirect: 'global:direct',
+  globalRandom: 'global:random',
   globalSocks5: 'global:socks5',
   siteInherit: 'site:inherit',
   siteDirect: 'site:direct',

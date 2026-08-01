@@ -51,6 +51,11 @@ describe('proxy/rules', () => {
     it('falls back to direct when global is direct', () => {
       expect(resolveRuleTarget('no-match.example.com', rules)).toEqual(DIRECT_TARGET);
     });
+
+    it('falls back to random target when global is random', () => {
+      const r = { ...rules, global: { kind: 'random' as const } };
+      expect(resolveRuleTarget('no-match.example.com', r)).toEqual({ kind: 'random' });
+    });
   });
 
   describe('findRuleForHost', () => {
@@ -83,6 +88,9 @@ describe('proxy/rules', () => {
   describe('labelForGlobal', () => {
     it('returns Direct for direct', () => {
       expect(labelForGlobal(DIRECT_GLOBAL)).toBe('Direct');
+    });
+    it('returns Random for random', () => {
+      expect(labelForGlobal({ kind: 'random' })).toBe('Random');
     });
     it('returns label for socks5', () => {
       expect(labelForGlobal({ kind: 'socks5', endpoint: { host: 'h', port: 1080 }, label: 'h' })).toBe('h');
