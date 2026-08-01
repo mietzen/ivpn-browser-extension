@@ -218,18 +218,14 @@ async function pickGlobalServer(gateway: string): Promise<void> {
 }
 
 /**
- * Persist a new global proxy. Any per-site rule for the current tab is
- * dropped at the same time so the site reverts to inheriting the new
- * global, and the popup field shows "Inherit from global" again.
+ * Persist a new global proxy. Per-site rules are left untouched so the
+ * Current Website field keeps its explicit choice instead of silently
+ * reverting to "Inherit from global".
  */
 async function applyGlobal(global: PersistedSettings['global']): Promise<void> {
   if (!currentSettings) return;
-  const nextRules = currentTabHost
-    ? currentSettings.domainRules.filter((r) => r.pattern !== currentTabHost)
-    : currentSettings.domainRules;
   currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
     global,
-    domainRules: nextRules,
   });
 }
 

@@ -85,6 +85,7 @@ test.describe('popup', () => {
   test('picking a server in Current Website shows it and auto-saves a rule', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
+      { mockServers: true },
     );
     try {
       const host = 'current-site.test';
@@ -148,9 +149,10 @@ test.describe('popup', () => {
     }
   });
 
-  test('picking a new global proxy resets Current Website to inherit from global', async ({}, testInfo) => {
+  test('picking a new global proxy keeps the Current Website per-site rule', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
+      { mockServers: true },
     );
     try {
       const host = 'current-site.test';
@@ -167,29 +169,33 @@ test.describe('popup', () => {
       await page.locator('#current-site-combobox .combobox-trigger').click();
       const siteServer = page.locator('#current-site-combobox .combobox-server:not(.combobox-special)').first();
       await expect(siteServer).toBeVisible({ timeout: 45000 });
+      const gateway = await siteServer.evaluate((el) => el.childNodes[0]?.textContent?.trim() ?? '');
       await siteServer.click();
 
       await page.locator('#global-combobox .combobox-trigger').click();
-      const globalServer = page.locator('#global-combobox .combobox-server:not(.combobox-special)').first();
+      const globalServer = page.locator('#global-combobox .combobox-server:not(.combobox-special)').nth(1);
       await expect(globalServer).toBeVisible({ timeout: 45000 });
       await globalServer.click();
 
       await expect(
         page.locator('#current-site-combobox .combobox-trigger').locator('.combobox-value'),
-      ).toHaveText('Inherit from global');
+      ).toHaveText(gateway);
 
       const stored = await page.evaluate(async () => {
-        return new Promise<{ domainRules?: Array<{ pattern: string }> }>((resolve, reject) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const w = (globalThis as any).chrome?.runtime ?? (globalThis as any).browser?.runtime;
-          if (!w) {
-            reject(new Error('extension runtime not found in popup context'));
-            return;
-          }
-          w.sendMessage({ type: 'settings/get' }, (response) => resolve(response ?? {}));
-        });
+        return new Promise<{ domainRules?: Array<{ pattern: string; target: { kind: string } }> }>(
+          (resolve, reject) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const w = (globalThis as any).chrome?.runtime ?? (globalThis as any).browser?.runtime;
+            if (!w) {
+              reject(new Error('extension runtime not found in popup context'));
+              return;
+            }
+            w.sendMessage({ type: 'settings/get' }, (response) => resolve(response ?? {}));
+          },
+        );
       });
-      expect(stored.domainRules?.some((r) => r.pattern === host) ?? false).toBe(false);
+      const rule = stored.domainRules?.find((r) => r.pattern === host);
+      expect(rule?.target.kind).toBe('socks5');
     } finally {
       await cleanup();
     }

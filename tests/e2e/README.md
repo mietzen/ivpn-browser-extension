@@ -23,6 +23,11 @@ Tests that rely on stable values (status panel IP/country) mock
 `/v4/geo-lookup` with a canned fixture — the geo-lookup returns the
 user's own IP, which changes per environment.
 
+Tests that reload the popup hit `/v5/servers/stats` a second time per
+run; those opt into mocking it with the captured
+`tests/fixtures/servers-stats.json` fixture (`mockServers: true`) so
+they stay deterministic. The rest of the suite keeps the live call.
+
 ## Local development
 
 ```bash
@@ -50,17 +55,20 @@ artifact on failure.
 
 Use the helpers in `helpers/extension.ts`:
 
-- `launchWithExtension(browserName, { headless?, mockGeo? })` —
+- `launchWithExtension(browserName, { headless?, mockGeo?, mockServers? })` —
   returns `{ context, extensionUrl, cleanup }`. Always call
   `cleanup()` in a `finally` block.
+  `mockGeo` (default `true`) mocks `/v4/geo-lookup`; `mockServers`
+  (default `false`) mocks `/v5/servers/stats` — opt in only for tests
+  that reload the popup, as above.
 - `openPopup(context, extensionUrl)` — returns a `Page` with the
   popup loaded and the picker ready.
 - `openOptionsPage(context, extensionUrl)` — same for options.
 
-The server list is always live. Don't hardcode gateway IDs in your
-tests — read them from the DOM (e.g. `page.locator('#rule-server
-option').nth(1).getAttribute('value')`) so tests stay stable as
-IVPN adds or removes servers.
+The server list is live unless you opt into `mockServers`. Don't
+hardcode gateway IDs in your tests — read them from the DOM (e.g.
+`page.locator('#rule-server option').nth(1).getAttribute('value')`)
+so tests stay stable as IVPN adds or removes servers.
 
 Always end a test with a `finally { await cleanup(); }` so the
 browser instance is closed even on assertion failures.

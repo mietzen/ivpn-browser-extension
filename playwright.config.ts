@@ -8,7 +8,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 1,
   reporter: [['list'], ['html', { open: 'never', outputFolder: './playwright-report' }]],
   outputDir: './test-results/e2e',
-  timeout: 30000,
+  // The server list is loaded live from the IVPN API; the popup tests wait
+  // up to 45s for it, so the per-test timeout must exceed that budget.
+  timeout: 60000,
   expect: { timeout: 5000 },
   use: {
     headless: true,

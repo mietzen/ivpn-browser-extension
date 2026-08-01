@@ -21,10 +21,18 @@ export const PATHS = {
   chromeBuild: join(repoRoot, '.output', 'chrome-mv3'),
   firefoxBuild: join(repoRoot, '.output', 'firefox-mv3'),
   fixtures: join(__dirname, '..', 'fixtures'),
+  sharedFixtures: join(repoRoot, 'tests', 'fixtures'),
 };
 
 function loadFixture(name: string): unknown {
-  return JSON.parse(readFileSync(join(PATHS.fixtures, name), 'utf-8')) as unknown;
+  for (const dir of [PATHS.fixtures, PATHS.sharedFixtures]) {
+    try {
+      return JSON.parse(readFileSync(join(dir, name), 'utf-8')) as unknown;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+  }
+  throw new Error(`Fixture not found: ${name}`);
 }
 
 export interface LaunchOptions {
@@ -35,6 +43,13 @@ export interface LaunchOptions {
    * gives stable assertions. Set to false to load it live.
    */
   mockGeo?: boolean;
+  /**
+   * Mock /v5/servers/stats with the captured fixture. Defaults to
+   * false (live, so the suite catches IVPN API breakage). Tests that
+   * reload the popup hit the endpoint twice per run; set this to true
+   * to keep them deterministic.
+   */
+  mockServers?: boolean;
 }
 
 /**
@@ -46,7 +61,7 @@ export async function launchWithExtension(
   browserName: 'chromium' | 'firefox',
   options: LaunchOptions = {},
 ): Promise<{ context: BrowserContext; extensionUrl: string; cleanup: () => Promise<void> }> {
-  const { headless = true, mockGeo = true } = options;
+  const { headless = true, mockGeo = true, mockServers = false } = options;
 
   let context: BrowserContext;
 
@@ -88,6 +103,9 @@ export async function launchWithExtension(
 
   if (mockGeo) {
     await mockGeoLookup(context);
+  }
+  if (mockServers) {
+    await mockServersList(context);
   }
 
   // Capture console + pageerror events from all pages so tests can surface
@@ -167,6 +185,17 @@ export async function mockGeoLookup(context: BrowserContext): Promise<void> {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(geo),
+    }),
+  );
+}
+
+export async function mockServersList(context: BrowserContext): Promise<void> {
+  const servers = loadFixture('servers-stats.json');
+  await context.route('**/api.ivpn.net/v5/servers/stats', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(servers),
     }),
   );
 }

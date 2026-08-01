@@ -16,6 +16,9 @@ dist
 *.zip
 *.xpi
 
+# Agent planning artifacts
+.omo/
+
 # Playwright
 test-results/
 playwright-report/
