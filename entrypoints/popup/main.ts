@@ -6,6 +6,7 @@
 
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '~/lib/ivpn/types';
+import { parseSocks5Endpoint } from '~/lib/ivpn/client';
 import type { RuleTarget } from '~/lib/proxy/rules';
 import type { PersistedSettings, ServerHistoryEntry } from '~/lib/storage';
 import {
@@ -210,7 +211,7 @@ async function pickGlobalServer(gateway: string): Promise<void> {
   if (!currentSettings) return;
   const server = allServers.find((s) => s.gateway === gateway);
   if (!server) return;
-  await applyGlobal({ kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway });
+  await applyGlobal({ kind: 'socks5', endpoint: parseSocks5Endpoint(server), label: server.gateway });
   await sendMessage('history/recordUse', { gateway });
   const updated = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
   if (!currentSettings) return;
@@ -227,11 +228,6 @@ async function applyGlobal(global: PersistedSettings['global']): Promise<void> {
   currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
     global,
   });
-}
-
-function parseEndpoint(server: IvpnServer): { host: string; port: number } {
-  const colon = server.socks5.indexOf(':');
-  return { host: colon === -1 ? server.socks5 : server.socks5.slice(0, colon), port: 1080 };
 }
 
 function toggleComboboxOpen(open: boolean): void {
@@ -271,7 +267,7 @@ function ruleTargetFromValue(
   if (value === SPECIAL_VALUES.siteRandom) return { kind: 'random' };
   const server = allServers.find((s) => s.gateway === value);
   if (!server) return null;
-  return { kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway };
+  return { kind: 'socks5', endpoint: parseSocks5Endpoint(server), label: server.gateway };
 }
 
 async function openOptions(): Promise<void> {

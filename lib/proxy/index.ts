@@ -7,6 +7,8 @@ import { browser } from 'wxt/browser';
 import * as firefoxImpl from './firefox';
 import * as chromeImpl from './chrome';
 import type { IvpnServer } from '../ivpn/types';
+import { parseSocks5Endpoint } from '../ivpn/client';
+import { isEligibleServer } from '../ivpn/grouping';
 import type { ProxyRules, Socks5Endpoint } from './rules';
 
 export const isFirefox = (() => {
@@ -20,9 +22,7 @@ export const isFirefox = (() => {
 })();
 
 function randomPool(servers: IvpnServer[]): Socks5Endpoint[] {
-  return servers
-    .filter((s) => s.is_active && !s.in_maintenance)
-    .map((s) => ({ host: s.socks5.split(':')[0]!, port: 1080 }));
+  return servers.filter(isEligibleServer).map(parseSocks5Endpoint);
 }
 
 export async function setProxyRules(rules: ProxyRules, servers: IvpnServer[]): Promise<void> {

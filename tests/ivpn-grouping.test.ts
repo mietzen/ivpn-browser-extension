@@ -8,6 +8,7 @@ import {
   searchGroups,
   findServer,
   pickRandomServer,
+  isEligibleServer,
 } from '~/lib/ivpn/grouping';
 import type { IvpnServer } from '~/lib/ivpn/types';
 
@@ -57,7 +58,7 @@ describe('ivpn/grouping', () => {
   });
 
   it('pickRandomServer returns null when no eligible remain', () => {
-    const servers = loadServers().filter((s) => s.is_active && !s.in_maintenance);
+    const servers = loadServers().filter(isEligibleServer);
     const chosen = pickRandomServer(servers, servers.map((s) => s.gateway));
     expect(chosen).toBeNull();
   });

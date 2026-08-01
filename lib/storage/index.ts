@@ -11,6 +11,7 @@
 
 import { storage } from 'wxt/utils/storage';
 import type { IvpnServer } from '../ivpn/types';
+import { parseSocks5Endpoint } from '../ivpn/client';
 import type {
   DomainRule,
   GlobalProxy,
@@ -141,17 +142,11 @@ export function resolveMigratedGlobal(
       const next: PersistedSettings = { ...settings, global: DIRECT_GLOBAL };
       return { settings: next, global: DIRECT_GLOBAL };
     }
-    const endpoint = parseSocks5EndpointLocal(server);
+    const endpoint = parseSocks5Endpoint(server);
     const global: GlobalProxy = { kind: 'socks5', endpoint, label: server.gateway };
     return { settings: { ...settings, global }, global };
   }
   return { settings, global: settings.global };
-}
-
-function parseSocks5EndpointLocal(server: IvpnServer): { host: string; port: number } {
-  const colon = server.socks5.indexOf(':');
-  const host = colon === -1 ? server.socks5 : server.socks5.slice(0, colon);
-  return { host, port: 1080 };
 }
 
 export const historyStore = {

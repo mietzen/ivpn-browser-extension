@@ -11,13 +11,18 @@ export interface CityGroup {
   servers: IvpnServer[];
 }
 
+/** A server the user can actually pick: active and not in maintenance. */
+export function isEligibleServer(server: IvpnServer): boolean {
+  return server.is_active && !server.in_maintenance;
+}
+
 /**
  * Filter to servers the user can actually pick (active and not in maintenance),
  * then group by country → city. Sorted alphabetically with country/city names;
  * servers within a city stay in their original order.
  */
 export function groupActiveServers(servers: IvpnServer[]): ServerGroup[] {
-  const eligible = servers.filter((s) => s.is_active && !s.in_maintenance);
+  const eligible = servers.filter(isEligibleServer);
 
   const byCountry = new Map<string, { country: string; cities: Map<string, IvpnServer[]> }>();
   for (const server of eligible) {
@@ -59,9 +64,7 @@ export function pickRandomServer(
   servers: IvpnServer[],
   exclude: string[] = [],
 ): IvpnServer | null {
-  const eligible = servers.filter(
-    (s) => s.is_active && !s.in_maintenance && !exclude.includes(s.gateway),
-  );
+  const eligible = servers.filter((s) => isEligibleServer(s) && !exclude.includes(s.gateway));
   if (eligible.length === 0) return null;
   return eligible[Math.floor(Math.random() * eligible.length)] ?? null;
 }

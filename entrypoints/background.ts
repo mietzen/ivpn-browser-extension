@@ -13,7 +13,7 @@ import { browser, type Browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { getServers, getConnectionStatus } from '../lib/ivpn/client';
 import type { IvpnServer } from '../lib/ivpn/types';
-import { groupActiveServers } from '../lib/ivpn/grouping';
+import { groupActiveServers, isEligibleServer } from '../lib/ivpn/grouping';
 import { buildRulesFromSettings, historyStore, resolveMigratedGlobal, serverCacheStore, settingsStore, type PersistedSettings } from '../lib/storage';
 import { setProxyRules, clearProxyRules, targetFromServer } from '../lib/proxy';
 import { updateBadge } from '../lib/badge';
@@ -95,7 +95,7 @@ function pickServerInUserCountry(servers: IvpnServer[]): Promise<IvpnServer | nu
     .then((status) => {
       if (!status?.country_code) return null;
       const code = status.country_code;
-      return servers.find((s) => s.country_code === code && s.is_active && !s.in_maintenance) ?? null;
+      return servers.find((s) => s.country_code === code && isEligibleServer(s)) ?? null;
     })
     .catch(() => null);
 }
