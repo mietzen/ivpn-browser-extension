@@ -81,4 +81,52 @@ test.describe('popup', () => {
       await cleanup();
     }
   });
+
+  test('picking a server in Current Website shows it and auto-saves a rule', async ({}, testInfo) => {
+    const { context, extensionUrl, cleanup } = await launchWithExtension(
+      testInfo.project.name as 'chromium' | 'firefox',
+    );
+    try {
+      const host = 'current-site.test';
+      await context.route(`https://${host}/**`, (route) =>
+        route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>ok</body></html>' }),
+      );
+      const sitePage = await context.newPage();
+      await sitePage.goto(`https://${host}/`);
+      // init() resolves the host from the active tab, so bring the site tab
+      // to front and reload the popup before interacting.
+      const page = await openPopup(context, extensionUrl);
+      await sitePage.bringToFront();
+      await page.reload();
+      await expect(page.locator('#current-host')).toHaveText(`(${host})`);
+
+      await page.locator('#current-site-combobox .combobox-trigger').click();
+      const firstServer = page.locator('#current-site-combobox .combobox-server:not(.combobox-special)').first();
+      await expect(firstServer).toBeVisible({ timeout: 45000 });
+      const gateway = await firstServer.evaluate((el) => el.childNodes[0]?.textContent?.trim() ?? '');
+      await firstServer.click();
+
+      await expect(
+        page.locator('#current-site-combobox .combobox-trigger').locator('.combobox-value'),
+      ).toHaveText(gateway);
+
+      const stored = await page.evaluate(async () => {
+        return new Promise<{ domainRules?: Array<{ pattern: string; target: { kind: string } }> }>(
+          (resolve, reject) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const w = (globalThis as any).chrome?.runtime ?? (globalThis as any).browser?.runtime;
+            if (!w) {
+              reject(new Error('extension runtime not found in popup context'));
+              return;
+            }
+            w.sendMessage({ type: 'settings/get' }, (response) => resolve(response ?? {}));
+          },
+        );
+      });
+      const rule = stored.domainRules?.find((r) => r.pattern === host);
+      expect(rule?.target.kind).toBe('socks5');
+    } finally {
+      await cleanup();
+    }
+  });
 });

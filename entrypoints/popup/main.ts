@@ -6,6 +6,7 @@
 
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '~/lib/ivpn/types';
+import type { RuleTarget } from '~/lib/proxy/rules';
 import type { PersistedSettings, ServerHistoryEntry } from '~/lib/storage';
 import {
   ServerCombobox,
@@ -48,7 +49,6 @@ const status = (() => {
 const els = {
   openOptions: document.getElementById('open-options') as HTMLButtonElement,
   currentHost: document.getElementById('current-host') as HTMLElement,
-  saveRule: document.getElementById('save-rule-btn') as HTMLButtonElement,
 };
 
 let currentSettings: PersistedSettings | null = null;
@@ -135,7 +135,9 @@ function reloadComboboxes(
   const currentGlobalValue = global.kind === 'direct' ? SPECIAL_VALUES.globalDirect : SPECIAL_VALUES.globalSocks5;
   const globalSpecialOptions: ComboboxOption[] = [
     { value: SPECIAL_VALUES.globalDirect, label: 'Direct' },
-    { value: SPECIAL_VALUES.globalSocks5, label: global.kind === 'socks5' ? global.label : '(select a server)' },
+    ...(global.kind === 'socks5'
+      ? [{ value: SPECIAL_VALUES.globalSocks5, label: global.label, disabled: true }]
+      : []),
   ];
   globalCombo.setOptions({
     options: globalSpecialOptions,
@@ -147,6 +149,7 @@ function reloadComboboxes(
       if (value === SPECIAL_VALUES.globalDirect) void onGlobalSelect(value, history);
       else void pickGlobalServer(value);
     },
+    onOpenChange: (open) => toggleComboboxOpen(open),
   });
   globalCombo.setValue(currentGlobalValue);
 
@@ -172,11 +175,10 @@ function reloadComboboxes(
     servers: allServers,
     placeholder: 'Inherit from global',
     emptyText: 'No servers available',
-    onSelect: (value) => onCurrentSiteSelect(value),
+    onSelect: (value) => void onCurrentSiteSelect(value),
+    onOpenChange: (open) => toggleComboboxOpen(open),
   });
   currentSiteCombo.setValue(currentTargetValue);
-
-  els.saveRule.disabled = !currentTabHost || currentTargetValue === SPECIAL_VALUES.siteInherit;
 }
 
 async function onGlobalSelect(value: string, history: Record<string, ServerHistoryEntry>): Promise<void> {
@@ -211,48 +213,44 @@ function parseEndpoint(server: IvpnServer): { host: string; port: number } {
   return { host: colon === -1 ? server.socks5 : server.socks5.slice(0, colon), port: 1080 };
 }
 
-async function onCurrentSiteSelect(value: string): Promise<void> {
-  if (!currentTabHost) return;
-  if (value === SPECIAL_VALUES.siteInherit) {
-    els.saveRule.disabled = true;
-  } else {
-    els.saveRule.disabled = false;
-  }
+function toggleComboboxOpen(open: boolean): void {
+  document.documentElement.classList.toggle('combobox-open', open);
 }
 
-async function saveRule(): Promise<void> {
+async function onCurrentSiteSelect(value: string): Promise<void> {
   if (!currentTabHost || !currentSettings) return;
-  const value = currentSiteCombo.getValue();
-  if (!value) return;
 
   const existingIdx = currentSettings.domainRules.findIndex((r) => r.pattern === currentTabHost);
   const nextRules = [...currentSettings.domainRules];
 
-  let target;
-  if (value === SPECIAL_VALUES.siteDirect) {
-    target = { kind: 'direct' as const };
-  } else if (value === SPECIAL_VALUES.siteRandom) {
-    target = { kind: 'random' as const };
+  if (value === SPECIAL_VALUES.siteInherit) {
+    if (existingIdx >= 0) nextRules.splice(existingIdx, 1);
   } else {
-    const server = allServers.find((s) => s.gateway === value);
-    if (!server) return;
-    target = { kind: 'socks5' as const, endpoint: parseEndpoint(server), label: server.gateway };
+    const target = ruleTargetFromValue(value);
+    if (!target) return;
+    const rule = {
+      pattern: currentTabHost,
+      target,
+      disabled: false,
+      proxyDns: false,
+    };
+    if (existingIdx >= 0) nextRules[existingIdx] = rule;
+    else nextRules.push(rule);
   }
-
-  const rule = {
-    pattern: currentTabHost,
-    target,
-    disabled: false,
-    proxyDns: false,
-  };
-
-  if (existingIdx >= 0) nextRules[existingIdx] = rule;
-  else nextRules.push(rule);
 
   currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
     domainRules: nextRules,
   });
-  els.saveRule.disabled = true;
+}
+
+function ruleTargetFromValue(
+  value: string,
+): RuleTarget | null {
+  if (value === SPECIAL_VALUES.siteDirect) return { kind: 'direct' };
+  if (value === SPECIAL_VALUES.siteRandom) return { kind: 'random' };
+  const server = allServers.find((s) => s.gateway === value);
+  if (!server) return null;
+  return { kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway };
 }
 
 async function openOptions(): Promise<void> {
@@ -298,6 +296,7 @@ async function init(): Promise<void> {
         void pickGlobalServer(value);
       }
     },
+    onOpenChange: (open) => toggleComboboxOpen(open),
   });
 
   currentSiteCombo.setOptions({
@@ -307,15 +306,13 @@ async function init(): Promise<void> {
     placeholder: 'Inherit from global',
     emptyText: 'No servers available',
     onSelect: (value) => void onCurrentSiteSelect(value),
+    onOpenChange: (open) => toggleComboboxOpen(open),
   });
 
   reloadComboboxes(history ?? {}, currentSettings);
 
   els.openOptions.addEventListener('click', () => {
     openOptions().catch((err) => console.error(err));
-  });
-  els.saveRule.addEventListener('click', () => {
-    saveRule().catch((err) => console.error(err));
   });
   status.refresh.addEventListener('click', () => {
     refreshStatus().catch((err) => console.error(err));
