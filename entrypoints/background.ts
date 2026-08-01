@@ -40,6 +40,19 @@ async function getServersWithCache(force = false): Promise<IvpnServer[]> {
   return fresh;
 }
 
+async function getActiveTabHost(): Promise<string | null> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.url) return null;
+    const u = new URL(tab.url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.hostname;
+  } catch {
+    return null;
+  }
+}
+
 async function pushCurrentRules(): Promise<void> {
   if (!state) return;
   const rules = buildRulesFromSettings(state.settings, state.servers);
@@ -50,7 +63,7 @@ async function pushCurrentRules(): Promise<void> {
   } else {
     await setProxyRules(rules, state.servers);
   }
-  await updateBadge(state.settings);
+  await updateBadge(rules, await getActiveTabHost());
 }
 
 /**
@@ -107,6 +120,13 @@ async function hydrate(): Promise<void> {
   await refreshWebRtcSetting(settings.webRtcEnabled, settings.webRtcDisableApplied);
 }
 
+/** Re-render the badge for the active tab without touching proxy rules. */
+async function refreshBadge(): Promise<void> {
+  if (!state) return;
+  const rules = buildRulesFromSettings(state.settings, state.servers);
+  await updateBadge(rules, await getActiveTabHost());
+}
+
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(async () => {
     await hydrate();
@@ -114,6 +134,14 @@ export default defineBackground(() => {
 
   browser.runtime.onStartup.addListener(async () => {
     await hydrate();
+  });
+
+  browser.tabs.onActivated.addListener(() => {
+    void refreshBadge();
+  });
+
+  browser.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.url) void refreshBadge();
   });
 
   browser.runtime.onMessage.addListener((message: unknown, _sender: Browser.runtime.MessageSender) => {
@@ -186,16 +214,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
       }
     }
     case 'tabs/active': {
-      try {
-        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-        const tab = tabs[0];
-        if (!tab?.url) return { host: null };
-        const u = new URL(tab.url);
-        if (u.protocol !== 'http:' && u.protocol !== 'https:') return { host: null };
-        return { host: u.hostname };
-      } catch (err) {
-        return { host: null, error: (err as Error).message };
-      }
+      return { host: await getActiveTabHost() };
     }
     case 'webrtc/leakCheck': {
       return { ok: true, supported: true, ...(await detectWebRtcLeak()) };

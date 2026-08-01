@@ -1,50 +1,58 @@
 /**
- * Toolbar badge. v2 model: badge reflects the global proxy state.
- *   - global.direct  → empty badge, inactive color
- *   - global.socks5  → gateway code, active color
- *   - per-domain rules present (any non-inherit target) → show "R" or
- *     a count badge so the user knows at a glance that per-host
- *     overrides are active.
+ * Toolbar badge. Reflects the effective proxy for the active tab:
+ *   - direct  → empty badge, inactive color
+ *   - socks5  → gateway code, active color
+ *   - random  → "R", active color
+ * When no web tab is active, falls back to the global default.
  */
 
 import { browser } from 'wxt/browser';
-import type { PersistedSettings } from '../storage';
+import type { ProxyRules, RuleTarget } from '../proxy/rules';
+import { resolveRuleTarget } from '../proxy/rules';
 
 const ACTIVE_COLOR = '#4f46e5';
 const INACTIVE_COLOR = '#6b7280';
 const ERROR_COLOR = '#dc2626';
 
-export async function updateBadge(settings: PersistedSettings): Promise<void> {
+export interface BadgeState {
+  text: string;
+  color: string;
+}
+
+/**
+ * Pure badge state for a host. Resolves the effective proxy target the
+ * same way the proxy layer does (exclusion > rule > global), so the
+ * badge always agrees with what traffic actually does. A null host
+ * (extension page, non-http tab) falls back to the global default.
+ */
+export function badgeForHost(host: string | null, rules: ProxyRules): BadgeState {
+  const target = host ? resolveRuleTarget(host, rules) : rules.global;
+  return badgeForTarget(target, rules);
+}
+
+function badgeForTarget(target: RuleTarget, rules: ProxyRules): BadgeState {
+  if (target.kind === 'socks5') {
+    return { text: target.label.slice(0, 4).toUpperCase(), color: ACTIVE_COLOR };
+  }
+  if (target.kind === 'random') {
+    return { text: 'R', color: ACTIVE_COLOR };
+  }
+  if (target.kind === 'global') {
+    return badgeForTarget(rules.global, rules);
+  }
+  return { text: '', color: INACTIVE_COLOR };
+}
+
+export async function updateBadge(rules: ProxyRules, host: string | null): Promise<void> {
   const actionApi = (browser.action ?? browser.browserAction) as {
     setBadgeText: (d: { text: string }) => Promise<void>;
     setBadgeBackgroundColor: (d: { color: string }) => Promise<void>;
   };
 
-  let text: string;
-  let color: string;
-
-  if (settings.global.kind === 'socks5') {
-    text = settings.global.label.slice(0, 4).toUpperCase();
-    color = ACTIVE_COLOR;
-  } else if (settings.global.kind === 'random') {
-    text = 'R';
-    color = ACTIVE_COLOR;
-  } else if (hasActiveOverride(settings)) {
-    text = 'R';
-    color = ACTIVE_COLOR;
-  } else {
-    text = '';
-    color = INACTIVE_COLOR;
-  }
+  const { text, color } = badgeForHost(host, rules);
 
   await actionApi.setBadgeBackgroundColor({ color });
   await actionApi.setBadgeText({ text });
-}
-
-function hasActiveOverride(settings: PersistedSettings): boolean {
-  return settings.domainRules.some(
-    (r) => !r.disabled && r.target.kind !== 'global',
-  );
 }
 
 export async function showErrorBadge(message: string): Promise<void> {
