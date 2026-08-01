@@ -1,7 +1,7 @@
 /**
- * IVPN API response types — matched to actual endpoint shapes documented in
- * PLAN.md §2. Fields are kept permissive (mostly optional) to absorb IVPN API
- * drift without breaking the extension.
+ * IVPN API response types — matched to actual endpoint shapes. Fields are kept
+ * permissive (mostly optional) to absorb IVPN API drift without breaking the
+ * extension.
  */
 
 export interface IvpnServer {

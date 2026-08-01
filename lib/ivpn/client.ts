@@ -1,7 +1,7 @@
 /**
  * IVPN public API client.
  *
- * Endpoints used (see PLAN.md §2):
+ * Endpoints used:
  *   GET https://api.ivpn.net/v5/servers/stats
  *   GET https://api.ivpn.net/v4/geo-lookup
  *
@@ -90,10 +90,9 @@ export async function getConnectionStatus(): Promise<IvpnGeoLookup> {
 /**
  * Pull a SOCKS5 host out of the `socks5` field.
  *
- * Per PLAN.md §2, the field is formatted
- *   "socks5.<gw>.gw.ivpn.net:10.1.x.x"
- * — that is hostname:internal-IP, not host:port. We split on the first `:` and
- * use whatever precedes it, then pair with the fixed port 1080.
+ * The field is formatted "socks5.<gw>.gw.ivpn.net:10.1.x.x" — that is
+ * hostname:internal-IP, not host:port. We split on the first `:` and use
+ * whatever precedes it, then pair with the fixed port 1080.
  */
 export function parseSocks5Endpoint(server: IvpnServer): { host: string; port: number } {
   if (typeof server.socks5 !== 'string' || server.socks5.length === 0) {
