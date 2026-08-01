@@ -59,10 +59,10 @@ test.describe('popup', () => {
       await seed.close();
 
       const page = await openPopup(context, extensionUrl);
-      await page.locator('.combobox-trigger').first().click();
-      await expect(page.locator('.combobox-quickpick')).toBeVisible();
-      await expect(page.locator('.combobox-search input')).toBeVisible();
-      const count = await page.locator('.combobox-server').count();
+      await page.locator('#global-combobox .combobox-trigger').click();
+      await expect(page.locator('#global-combobox .combobox-quickpick')).toBeVisible();
+      await expect(page.locator('#global-combobox .combobox-search input')).toBeVisible();
+      const count = await page.locator('#global-combobox .combobox-server').count();
       expect(count).toBeGreaterThan(0);
     } finally {
       await cleanup();

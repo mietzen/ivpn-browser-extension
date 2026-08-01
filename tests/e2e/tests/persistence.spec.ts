@@ -16,13 +16,13 @@ test.describe('persistence', () => {
       // Pick the first live server in the global combobox and verify the
       // UI updates.
       const page = await openPopup(context, extensionUrl);
-      await page.locator('.combobox-trigger').first().click();
-      const firstServer = page.locator('.combobox-server').first();
+      await page.locator('#global-combobox .combobox-trigger').click();
+      const firstServer = page.locator('#global-combobox .combobox-server').first();
       await expect(firstServer).toBeVisible();
       await firstServer.click();
-      await expect(page.locator('.combobox-trigger').first().locator('.combobox-value')).not.toHaveText(
-        'Direct',
-      );
+      await expect(
+        page.locator('#global-combobox .combobox-trigger').locator('.combobox-value'),
+      ).not.toHaveText('Direct');
 
       // Ask the background what it sees. This is the same code path the
       // popup uses on next load — so this verifies the persistence
