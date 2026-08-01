@@ -85,6 +85,7 @@ test.describe('popup', () => {
   test('picking a server in Current Website shows it and auto-saves a rule', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
+      { mockServers: true },
     );
     try {
       const host = 'current-site.test';
@@ -151,6 +152,7 @@ test.describe('popup', () => {
   test('picking a new global proxy keeps the Current Website per-site rule', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
+      { mockServers: true },
     );
     try {
       const host = 'current-site.test';
