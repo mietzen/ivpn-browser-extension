@@ -9,6 +9,7 @@ import type { IvpnServer } from '~/lib/ivpn/types';
 import { parseSocks5Endpoint } from '~/lib/ivpn/client';
 import type { RuleTarget } from '~/lib/proxy/rules';
 import type { PersistedSettings, ServerHistoryEntry } from '~/lib/storage';
+import { sendMessage, loadSettings, loadServers } from '~/lib/messages';
 import {
   ServerCombobox,
   SPECIAL_VALUES,
@@ -61,25 +62,8 @@ const currentSiteCombo = new ServerCombobox();
 document.getElementById('global-combobox')!.appendChild(globalCombo.element);
 document.getElementById('current-site-combobox')!.appendChild(currentSiteCombo.element);
 
-async function sendMessage<T = unknown>(type: string, payload?: unknown): Promise<T> {
-  return (await browser.runtime.sendMessage({ type, payload })) as T;
-}
-
-async function loadSettings(): Promise<PersistedSettings> {
-  return sendMessage<PersistedSettings>('settings/get');
-}
-
-async function loadServers(): Promise<IvpnServer[]> {
-  try {
-    const res = await sendMessage<{ servers?: IvpnServer[] }>('servers/refresh');
-    return res.servers ?? [];
-  } catch {
-    return [];
-  }
-}
-
 async function getActiveTabHost(): Promise<string | null> {
-  const res = await sendMessage<{ host: string | null }>('tabs/active');
+  const res = await sendMessage('tabs/active');
   return res.host;
 }
 
@@ -109,11 +93,7 @@ function setStatus(
 
 async function refreshStatus(): Promise<void> {
   setStatus('checking', 'Checking…');
-  const res = await sendMessage<{
-    ok: boolean;
-    status?: { ip_address: string; country: string; city: string; country_code: string; isIvpnServer: boolean };
-    error?: string;
-  }>('connection/status');
+  const res = await sendMessage('connection/status');
   if (!res.ok || !res.status) {
     setStatus('error', res.error ?? 'Unavailable');
     return;
@@ -213,9 +193,9 @@ async function pickGlobalServer(gateway: string): Promise<void> {
   if (!server) return;
   await applyGlobal({ kind: 'socks5', endpoint: parseSocks5Endpoint(server), label: server.gateway });
   await sendMessage('history/recordUse', { gateway });
-  const updated = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
+  const updated = await sendMessage('history/get');
   if (!currentSettings) return;
-  reloadComboboxes(updated ?? {}, currentSettings);
+  reloadComboboxes(updated, currentSettings);
 }
 
 /**
@@ -225,9 +205,7 @@ async function pickGlobalServer(gateway: string): Promise<void> {
  */
 async function applyGlobal(global: PersistedSettings['global']): Promise<void> {
   if (!currentSettings) return;
-  currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
-    global,
-  });
+  currentSettings = await sendMessage('settings/setGlobal', { global });
 }
 
 function toggleComboboxOpen(open: boolean): void {
@@ -237,26 +215,17 @@ function toggleComboboxOpen(open: boolean): void {
 async function onCurrentSiteSelect(value: string): Promise<void> {
   if (!currentTabHost || !currentSettings) return;
 
-  const existingIdx = currentSettings.domainRules.findIndex((r) => r.pattern === currentTabHost);
-  const nextRules = [...currentSettings.domainRules];
-
   if (value === SPECIAL_VALUES.siteInherit) {
-    if (existingIdx >= 0) nextRules.splice(existingIdx, 1);
-  } else {
-    const target = ruleTargetFromValue(value);
-    if (!target) return;
-    const rule = {
-      pattern: currentTabHost,
-      target,
-      disabled: false,
-      proxyDns: false,
-    };
-    if (existingIdx >= 0) nextRules[existingIdx] = rule;
-    else nextRules.push(rule);
+    currentSettings = await sendMessage('rules/remove', { pattern: currentTabHost });
+    return;
   }
-
-  currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
-    domainRules: nextRules,
+  const target = ruleTargetFromValue(value);
+  if (!target) return;
+  currentSettings = await sendMessage('rules/add', {
+    pattern: currentTabHost,
+    target,
+    proxyDns: false,
+    disabled: false,
   });
 }
 
@@ -281,7 +250,7 @@ async function openOptions(): Promise<void> {
 async function init(): Promise<void> {
   currentSettings = await loadSettings();
   const [history, tabHost] = await Promise.all([
-    sendMessage<Record<string, ServerHistoryEntry>>('history/get'),
+    sendMessage('history/get'),
     getActiveTabHost(),
   ]);
   currentTabHost = tabHost;
@@ -301,13 +270,13 @@ async function init(): Promise<void> {
   // 'Direct' option) sets the global gateway.
   globalCombo.setOptions({
     options: [],
-    history: history ?? {},
+    history,
     servers: allServers,
     placeholder: 'Direct',
     emptyText: 'No servers available',
     onSelect: (value) => {
       if (value === SPECIAL_VALUES.globalDirect || value === SPECIAL_VALUES.globalRandom) {
-        void onGlobalSelect(value, history ?? {});
+        void onGlobalSelect(value, history);
       } else {
         // Picked a server from the popover list
         void pickGlobalServer(value);
@@ -318,7 +287,7 @@ async function init(): Promise<void> {
 
   currentSiteCombo.setOptions({
     options: [],
-    history: history ?? {},
+    history,
     servers: allServers,
     placeholder: 'Inherit from global',
     emptyText: 'No servers available',
@@ -326,7 +295,7 @@ async function init(): Promise<void> {
     onOpenChange: (open) => toggleComboboxOpen(open),
   });
 
-  reloadComboboxes(history ?? {}, currentSettings);
+  reloadComboboxes(history, currentSettings);
 
   els.openOptions.addEventListener('click', () => {
     openOptions().catch((err) => console.error(err));
