@@ -3,19 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IVPN Companion (Community)</title>
+    <title>IVPN Proxy-Switcher</title>
     <link rel="stylesheet" href="~/entrypoints/popup/style.css" />
   </head>
   <body>
     <div class="app">
       <header class="app-header">
-        <div class="brand">
-          <span class="brand-mark">IVPN</span>
-          <span class="brand-sub">Companion · Community</span>
-        </div>
-        <button id="open-options" class="open-options-btn" type="button" aria-label="Open options">
-          Settings
-        </button>
+        <span class="brand-mark">IVPN Proxy-Switcher</span>
+        <button id="open-options" class="open-options-btn" type="button">Settings</button>
       </header>
 
       <section class="status" id="status-panel" data-state="checking">
@@ -30,33 +25,20 @@
         <button id="status-refresh" class="text-btn" type="button">Refresh</button>
       </section>
 
-      <section class="mode">
-        <div class="mode-buttons" role="tablist">
-          <button class="mode-btn" data-mode="direct" type="button" role="tab" title="No proxy — all traffic direct">
-            Off
-          </button>
-          <button class="mode-btn" data-mode="global" type="button" role="tab" title="Route all traffic through the selected server">
-            Global
-          </button>
-          <button class="mode-btn" data-mode="random" type="button" role="tab" title="Route all traffic through a randomly chosen active server">
-            Random
-          </button>
-        </div>
+      <section class="proxy-section">
+        <h2 class="section-label">Global</h2>
+        <div id="global-combobox"></div>
       </section>
 
-      <section class="picker">
-        <input id="picker-search" type="search" placeholder="Search country, city, or gateway" autocomplete="off" />
-        <div id="picker-list" class="picker-list" role="listbox"></div>
-      </section>
-
-      <section class="history" id="history-section" hidden>
-        <h2 class="section-title">Quick pick</h2>
-        <div id="history-list" class="history-list"></div>
+      <section class="proxy-section" id="current-site-section">
+        <h2 class="section-label">Current Website <span id="current-host" class="host-label"></span></h2>
+        <div id="current-site-combobox"></div>
+        <button id="save-rule-btn" class="text-btn" type="button" disabled>Save as rule</button>
       </section>
 
       <footer class="app-footer">
         <p class="disclosure">
-          Community project — unaffiliated with IVPN Limited. Talks directly to
+          Not affiliated with IVPN Limited. Talks directly to
           <code>api.ivpn.net</code>; no data passes through project maintainers.
         </p>
       </footer>

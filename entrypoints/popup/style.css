@@ -48,7 +48,7 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 12px;
 }
 
@@ -56,25 +56,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 6px;
-}
-
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  padding-bottom: 4px;
 }
 
 .brand-mark {
   font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.3px;
+  font-size: 14px;
+  letter-spacing: 0.2px;
   color: var(--ivpn-red);
-}
-
-.brand-sub {
-  font-size: 11px;
-  color: var(--fg-muted);
 }
 
 .open-options-btn {
@@ -94,7 +83,6 @@ body {
   background: var(--bg-soft);
 }
 
-/* Status — single-line compact */
 .status {
   display: flex;
   flex-direction: column;
@@ -134,7 +122,6 @@ body {
   color: var(--fg-faint);
 }
 
-.status-refresh,
 .text-btn {
   background: transparent;
   border: 0;
@@ -147,140 +134,116 @@ body {
   align-self: flex-start;
 }
 
-/* Mode — single row of compact pills */
-.mode {
-  padding: 0;
+.text-btn:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
-.mode-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+.proxy-section {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  background: var(--bg-soft);
-  padding: 3px;
-  border-radius: var(--radius);
 }
 
-.mode-btn {
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  cursor: pointer;
+.section-label {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--fg-muted);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  transition: background-color 0.12s, color 0.12s;
+  font-weight: 600;
 }
 
-.mode-btn:hover {
-  color: var(--fg);
+.host-label {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-faint);
+  margin-left: 4px;
 }
 
-.mode-btn.active {
-  background: var(--bg);
-  color: var(--ivpn-red);
-  box-shadow: var(--shadow);
-}
-
-/* Picker — search + scrollable list */
-.picker {
-  padding: 0;
-}
-
-#picker-search {
+/* Combobox */
+.combobox {
+  position: relative;
   width: 100%;
-  padding: 7px 10px;
+}
+
+.combobox-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 12px;
+  padding: 7px 10px;
+  font-size: 13px;
   font-family: inherit;
-  margin-bottom: 6px;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
 }
 
-#picker-search:focus {
-  outline: none;
+.combobox-trigger.is-set {
+  color: var(--ivpn-red);
+  font-weight: 500;
+}
+
+.combobox-trigger:hover {
   border-color: var(--ivpn-red);
 }
 
-.picker-list {
-  max-height: 220px;
-  overflow-y: auto;
+.combobox-value {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.combobox-chevron {
+  color: var(--fg-faint);
+  margin-left: 8px;
+}
+
+.combobox-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-}
-
-.picker-group {
-  padding: 0;
-}
-
-.picker-country {
-  font-weight: 600;
-  padding: 5px 10px;
-  background: var(--bg-soft);
-  color: var(--fg-muted);
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.picker-city {
-  padding: 4px 10px 2px;
-  font-size: 11px;
-  color: var(--fg-faint);
-}
-
-.picker-server {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  max-height: 320px;
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 12px;
-  cursor: pointer;
-  font-size: 12px;
+  flex-direction: column;
 }
 
-.picker-server:hover {
-  background: var(--ivpn-red-soft);
+.combobox-quickpick {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
 }
 
-.picker-server.selected {
-  background: var(--ivpn-red-soft);
-  font-weight: 600;
-}
-
-.picker-server .load {
-  color: var(--fg-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* History */
-.history {
-  padding: 0;
-}
-
-.section-title {
-  margin: 0 0 4px;
+.combobox-section-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--fg-muted);
   font-weight: 600;
+  margin-bottom: 6px;
 }
 
-.history-list {
+.combobox-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-.history-chip {
+.combobox-chip {
   background: var(--ivpn-red-soft);
   border: 0;
   border-radius: 12px;
@@ -291,11 +254,90 @@ body {
   font-family: inherit;
 }
 
-.history-chip:hover {
+.combobox-chip:hover {
   filter: brightness(0.95);
 }
 
-/* Footer */
+.combobox-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.combobox-search input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.combobox-search input:focus {
+  outline: none;
+  border-color: var(--ivpn-red);
+}
+
+.combobox-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.combobox-country {
+  font-weight: 600;
+  padding: 6px 10px 3px;
+  background: var(--bg-soft);
+  color: var(--fg-muted);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.combobox-city {
+  padding: 3px 12px 0;
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+
+.combobox-server {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--fg);
+  text-align: left;
+}
+
+.combobox-server:hover {
+  background: var(--ivpn-red-soft);
+}
+
+.combobox-server.selected {
+  background: var(--ivpn-red-soft);
+  font-weight: 600;
+}
+
+.combobox-server:focus {
+  outline: none;
+  background: var(--ivpn-red-soft);
+}
+
+.combobox-load {
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 .app-footer {
   padding: 6px 0 2px;
   border-top: 1px solid var(--border);

@@ -1,6 +1,6 @@
 {
-  "name": "ivpn-browser-extension-community",
-  "description": "Community-maintained browser extension for IVPN. Routes browser traffic through IVPN desktop app's SOCKS5 proxy. Unofficial, not affiliated with IVPN Limited.",
+  "name": "ivpn-proxy-switcher",
+  "description": "Routes browser traffic through the IVPN desktop app SOCKS5 proxy. Unofficial, not affiliated with IVPN Limited.",
   "version": "0.1.0",
   "private": true,
   "type": "module",

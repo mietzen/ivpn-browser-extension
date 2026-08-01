@@ -8,69 +8,69 @@ test.describe('popup', () => {
     }
   });
 
-  test('renders with live server list (api.ivpn.net hit live)', async ({}, testInfo) => {
+  test('renders the two combobox sections and a status line', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
     );
     try {
       const page = await openPopup(context, extensionUrl);
-      // The live server list must populate. We don't hardcode counts because
-      // IVPN adds/removes servers over time — just assert non-empty.
-      const serverCount = await page.locator('.picker-server').count();
-      expect(serverCount, 'live server list returned at least one server').toBeGreaterThan(0);
-      const countryCount = await page.locator('.picker-country').count();
-      expect(countryCount, 'at least one country group').toBeGreaterThan(0);
-      // IVPN text mark in the brand
-      await expect(page.locator('.brand-mark')).toHaveText('IVPN');
-      // Community disclosure in the footer
+      await expect(page.locator('.brand-mark')).toHaveText('IVPN Proxy-Switcher');
+      await expect(page.locator('.proxy-section .section-label').first()).toHaveText('Global');
+      await expect(page.locator('.proxy-section').nth(1).locator('.section-label')).toContainText(
+        'Current Website',
+      );
+      await expect(page.locator('.combobox-trigger')).toHaveCount(2);
       await expect(page.locator('.disclosure')).toContainText('IVPN Limited');
     } finally {
       await cleanup();
     }
   });
 
-  test('mode toggle changes the active button', async ({}, testInfo) => {
+  test('global combobox shows Direct by default with no server set', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
     );
     try {
       const page = await openPopup(context, extensionUrl);
-      // Initially direct mode (default settings)
-      await expect(page.locator('.mode-btn[data-mode="direct"]')).toHaveClass(/active/);
-      // Click global
-      await page.click('.mode-btn[data-mode="global"]');
-      await expect(page.locator('.mode-btn[data-mode="global"]')).toHaveClass(/active/);
-      await expect(page.locator('.mode-btn[data-mode="direct"]')).not.toHaveClass(/active/);
-      // Back to direct
-      await page.click('.mode-btn[data-mode="direct"]');
-      await expect(page.locator('.mode-btn[data-mode="direct"]')).toHaveClass(/active/);
+      await expect(page.locator('.combobox-trigger').first().locator('.combobox-value')).toHaveText('Direct');
     } finally {
       await cleanup();
     }
   });
 
-  test('search filters the server list', async ({}, testInfo) => {
+  test('opening the global combobox reveals Quick Pick + full list', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
     );
     try {
       const page = await openPopup(context, extensionUrl);
-      const totalBefore = await page.locator('.picker-server').count();
-      expect(totalBefore).toBeGreaterThan(0);
+      await page.evaluate(() => {
+        return new Promise<string>((resolve) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const w = (globalThis as any).chrome?.runtime;
+          w.sendMessage({ type: 'history/recordUse', payload: { gateway: 'us-nyc-wg-001' } }, () =>
+            resolve('ok'),
+          );
+        });
+      });
+      await page.locator('.combobox-trigger').first().click();
+      await expect(page.locator('.combobox-quickpick')).toBeVisible();
+      await expect(page.locator('.combobox-search input')).toBeVisible();
+      const count = await page.locator('.combobox-server').count();
+      expect(count).toBeGreaterThan(0);
+    } finally {
+      await cleanup();
+    }
+  });
 
-      // Pick the first country name and search for it. This is data-driven
-      // so it works against any live server list.
-      const firstCountryText = await page.locator('.picker-country').first().textContent();
-      expect(firstCountryText).toBeTruthy();
-      const firstCountry = firstCountryText!.replace(/\s*\([A-Z]{2}\)\s*$/, '').trim();
-
-      await page.fill('#picker-search', firstCountry);
-      const filteredCount = await page.locator('.picker-server').count();
-      expect(filteredCount, 'search should match the first country group').toBeGreaterThan(0);
-      expect(filteredCount, 'search should reduce visible servers').toBeLessThan(totalBefore);
-
-      await page.fill('#picker-search', '');
-      await expect(page.locator('.picker-server')).toHaveCount(totalBefore);
+  test('Current Website section is present and shows host label', async ({}, testInfo) => {
+    const { context, extensionUrl, cleanup } = await launchWithExtension(
+      testInfo.project.name as 'chromium' | 'firefox',
+    );
+    try {
+      const page = await openPopup(context, extensionUrl);
+      const hostText = await page.locator('#current-host').textContent();
+      expect(hostText).toBeTruthy();
     } finally {
       await cleanup();
     }

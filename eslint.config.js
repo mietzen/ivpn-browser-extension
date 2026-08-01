@@ -57,6 +57,7 @@ export default [
         HTMLDivElement: 'readonly',
         HTMLButtonElement: 'readonly',
         HTMLUListElement: 'readonly',
+        Node: 'readonly',
         HTMLLIElement: 'readonly',
         HTMLSpanElement: 'readonly',
         HTMLLabelElement: 'readonly',
