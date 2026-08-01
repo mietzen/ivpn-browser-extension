@@ -143,7 +143,10 @@ function reloadComboboxes(
     servers: allServers,
     placeholder: 'Direct',
     emptyText: 'No servers available',
-    onSelect: (value) => onGlobalSelect(value, history),
+    onSelect: (value) => {
+      if (value === SPECIAL_VALUES.globalDirect) void onGlobalSelect(value, history);
+      else void pickGlobalServer(value);
+    },
   });
   globalCombo.setValue(currentGlobalValue);
 
