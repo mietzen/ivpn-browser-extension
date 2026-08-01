@@ -99,6 +99,10 @@ function renderProxyTab(): void {
   direct.value = 'direct';
   direct.textContent = 'Direct';
   els.globalProxy.appendChild(direct);
+  const random = document.createElement('option');
+  random.value = 'random';
+  random.textContent = 'Random';
+  els.globalProxy.appendChild(random);
   const groups = groupActiveServers(servers);
   for (const g of groups) {
     const og = document.createElement('optgroup');
@@ -115,6 +119,9 @@ function renderProxyTab(): void {
       }
     }
     els.globalProxy.appendChild(og);
+  }
+  if (settings.global.kind === 'random') {
+    els.globalProxy.value = 'random';
   }
 }
 
@@ -227,6 +234,8 @@ async function setGlobal(value: string): Promise<void> {
   let global: GlobalProxy;
   if (value === 'direct') {
     global = { kind: 'direct' };
+  } else if (value === 'random') {
+    global = { kind: 'random' };
   } else {
     const found = servers.find((s) => s.gateway === value);
     if (!found) return;

@@ -132,9 +132,15 @@ function reloadComboboxes(
   if (!currentSettings) return;
 
   const global = currentSettings.global;
-  const currentGlobalValue = global.kind === 'direct' ? SPECIAL_VALUES.globalDirect : SPECIAL_VALUES.globalSocks5;
+  const currentGlobalValue =
+    global.kind === 'direct'
+      ? SPECIAL_VALUES.globalDirect
+      : global.kind === 'random'
+        ? SPECIAL_VALUES.globalRandom
+        : SPECIAL_VALUES.globalSocks5;
   const globalSpecialOptions: ComboboxOption[] = [
     { value: SPECIAL_VALUES.globalDirect, label: 'Direct' },
+    { value: SPECIAL_VALUES.globalRandom, label: 'Random' },
     ...(global.kind === 'socks5'
       ? [{ value: SPECIAL_VALUES.globalSocks5, label: global.label, disabled: true }]
       : []),
@@ -146,8 +152,11 @@ function reloadComboboxes(
     placeholder: 'Direct',
     emptyText: 'No servers available',
     onSelect: (value) => {
-      if (value === SPECIAL_VALUES.globalDirect) void onGlobalSelect(value, history);
-      else void pickGlobalServer(value);
+      if (value === SPECIAL_VALUES.globalDirect || value === SPECIAL_VALUES.globalRandom) {
+        void onGlobalSelect(value, history);
+      } else {
+        void pickGlobalServer(value);
+      }
     },
     onOpenChange: (open) => toggleComboboxOpen(open),
   });
@@ -183,15 +192,17 @@ function reloadComboboxes(
 
 async function onGlobalSelect(value: string, history: Record<string, ServerHistoryEntry>): Promise<void> {
   if (!currentSettings) return;
+  let global: PersistedSettings['global'];
   if (value === SPECIAL_VALUES.globalDirect) {
-    currentSettings = await sendMessage<PersistedSettings>('settings/setGlobal', {
-      global: { kind: 'direct' },
-    });
+    global = { kind: 'direct' };
+  } else if (value === SPECIAL_VALUES.globalRandom) {
+    global = { kind: 'random' };
   } else {
     // 'global:socks5' means "let me pick". Open the popover to pick.
     // When user picks a server, we receive its gateway value.
     return;
   }
+  await applyGlobal(global);
   reloadComboboxes(history, currentSettings);
 }
 
@@ -199,13 +210,27 @@ async function pickGlobalServer(gateway: string): Promise<void> {
   if (!currentSettings) return;
   const server = allServers.find((s) => s.gateway === gateway);
   if (!server) return;
-  currentSettings = await sendMessage<PersistedSettings>('settings/setGlobal', {
-    global: { kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway },
-  });
+  await applyGlobal({ kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway });
   await sendMessage('history/recordUse', { gateway });
   const updated = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
   if (!currentSettings) return;
   reloadComboboxes(updated ?? {}, currentSettings);
+}
+
+/**
+ * Persist a new global proxy. Any per-site rule for the current tab is
+ * dropped at the same time so the site reverts to inheriting the new
+ * global, and the popup field shows "Inherit from global" again.
+ */
+async function applyGlobal(global: PersistedSettings['global']): Promise<void> {
+  if (!currentSettings) return;
+  const nextRules = currentTabHost
+    ? currentSettings.domainRules.filter((r) => r.pattern !== currentTabHost)
+    : currentSettings.domainRules;
+  currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
+    global,
+    domainRules: nextRules,
+  });
 }
 
 function parseEndpoint(server: IvpnServer): { host: string; port: number } {
@@ -289,7 +314,7 @@ async function init(): Promise<void> {
     placeholder: 'Direct',
     emptyText: 'No servers available',
     onSelect: (value) => {
-      if (value === SPECIAL_VALUES.globalDirect) {
+      if (value === SPECIAL_VALUES.globalDirect || value === SPECIAL_VALUES.globalRandom) {
         void onGlobalSelect(value, history ?? {});
       } else {
         // Picked a server from the popover list

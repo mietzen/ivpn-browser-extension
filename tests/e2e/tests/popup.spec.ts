@@ -62,7 +62,7 @@ test.describe('popup', () => {
       await page.locator('#global-combobox .combobox-trigger').click();
       await expect(page.locator('#global-combobox .combobox-quickpick')).toBeVisible();
       await expect(page.locator('#global-combobox .combobox-search input')).toBeVisible();
-      const firstServer = page.locator('#global-combobox .combobox-server').first();
+      const firstServer = page.locator('#global-combobox .combobox-server:not(.combobox-special)').first();
       await expect(firstServer).toBeVisible({ timeout: 45000 });
     } finally {
       await cleanup();
@@ -125,6 +125,71 @@ test.describe('popup', () => {
       });
       const rule = stored.domainRules?.find((r) => r.pattern === host);
       expect(rule?.target.kind).toBe('socks5');
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('global combobox offers Random and picks it as the global proxy', async ({}, testInfo) => {
+    const { context, extensionUrl, cleanup } = await launchWithExtension(
+      testInfo.project.name as 'chromium' | 'firefox',
+    );
+    try {
+      const page = await openPopup(context, extensionUrl);
+      await page.locator('#global-combobox .combobox-trigger').click();
+      const randomRow = page.locator('#global-combobox .combobox-server', { hasText: /^Random$/ });
+      await expect(randomRow).toBeVisible();
+      await randomRow.click();
+      await expect(
+        page.locator('#global-combobox .combobox-trigger').locator('.combobox-value'),
+      ).toHaveText('Random');
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('picking a new global proxy resets Current Website to inherit from global', async ({}, testInfo) => {
+    const { context, extensionUrl, cleanup } = await launchWithExtension(
+      testInfo.project.name as 'chromium' | 'firefox',
+    );
+    try {
+      const host = 'current-site.test';
+      await context.route(`https://${host}/**`, (route) =>
+        route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>ok</body></html>' }),
+      );
+      const sitePage = await context.newPage();
+      await sitePage.goto(`https://${host}/`);
+      const page = await openPopup(context, extensionUrl);
+      await sitePage.bringToFront();
+      await page.reload();
+      await expect(page.locator('#current-host')).toHaveText(`(${host})`);
+
+      await page.locator('#current-site-combobox .combobox-trigger').click();
+      const siteServer = page.locator('#current-site-combobox .combobox-server:not(.combobox-special)').first();
+      await expect(siteServer).toBeVisible({ timeout: 45000 });
+      await siteServer.click();
+
+      await page.locator('#global-combobox .combobox-trigger').click();
+      const globalServer = page.locator('#global-combobox .combobox-server:not(.combobox-special)').first();
+      await expect(globalServer).toBeVisible({ timeout: 45000 });
+      await globalServer.click();
+
+      await expect(
+        page.locator('#current-site-combobox .combobox-trigger').locator('.combobox-value'),
+      ).toHaveText('Inherit from global');
+
+      const stored = await page.evaluate(async () => {
+        return new Promise<{ domainRules?: Array<{ pattern: string }> }>((resolve, reject) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const w = (globalThis as any).chrome?.runtime ?? (globalThis as any).browser?.runtime;
+          if (!w) {
+            reject(new Error('extension runtime not found in popup context'));
+            return;
+          }
+          w.sendMessage({ type: 'settings/get' }, (response) => resolve(response ?? {}));
+        });
+      });
+      expect(stored.domainRules?.some((r) => r.pattern === host) ?? false).toBe(false);
     } finally {
       await cleanup();
     }

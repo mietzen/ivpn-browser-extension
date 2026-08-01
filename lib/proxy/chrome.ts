@@ -21,7 +21,9 @@ function resolveToEndpointJs(target: RuleTarget, global: GlobalProxy, hasRandom:
   if (target.kind === 'direct') return toProxyString(null);
   if (target.kind === 'socks5') return toProxyString(target.endpoint);
   if (target.kind === 'global') {
-    return global.kind === 'socks5' ? toProxyString(global.endpoint) : toProxyString(null);
+    if (global.kind === 'socks5') return toProxyString(global.endpoint);
+    if (global.kind === 'random') return hasRandom ? 'randomChoice' : toProxyString(null);
+    return toProxyString(null);
   }
   if (target.kind === 'random') {
     return hasRandom ? 'randomChoice' : toProxyString(null);
@@ -48,7 +50,11 @@ export function generatePacScript(rules: ProxyRules, randomChoiceJs: string): st
     })
     .join(',\n');
   const globalJs =
-    rules.global.kind === 'socks5' ? toProxyString(rules.global.endpoint) : toProxyString(null);
+    rules.global.kind === 'socks5'
+      ? toProxyString(rules.global.endpoint)
+      : rules.global.kind === 'random'
+        ? 'randomPool()'
+        : toProxyString(null);
 
   return `
 function FindProxyForURL(url, host) {
@@ -160,7 +166,8 @@ export async function setProxyRules(rules: ProxyRules, randomPool: Socks5Endpoin
     randomPool.length > 0
       ? `function() {
   var pool = ${JSON.stringify(randomPool)};
-  return 'SOCKS5 ' + pool[Math.floor(Math.random() * pool.length)].host + ':' + pool[Math.floor(Math.random() * pool.length)].port;
+  var pick = pool[Math.floor(Math.random() * pool.length)];
+  return 'SOCKS5 ' + pick.host + ':' + pick.port;
 }`
       : "function() { return 'DIRECT'; }";
 
