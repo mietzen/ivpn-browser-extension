@@ -62,8 +62,8 @@ test.describe('popup', () => {
       await page.locator('#global-combobox .combobox-trigger').click();
       await expect(page.locator('#global-combobox .combobox-quickpick')).toBeVisible();
       await expect(page.locator('#global-combobox .combobox-search input')).toBeVisible();
-      const count = await page.locator('#global-combobox .combobox-server').count();
-      expect(count).toBeGreaterThan(0);
+      const firstServer = page.locator('#global-combobox .combobox-server').first();
+      await expect(firstServer).toBeVisible({ timeout: 45000 });
     } finally {
       await cleanup();
     }

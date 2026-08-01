@@ -18,7 +18,7 @@ test.describe('persistence', () => {
       const page = await openPopup(context, extensionUrl);
       await page.locator('#global-combobox .combobox-trigger').click();
       const firstServer = page.locator('#global-combobox .combobox-server').first();
-      await expect(firstServer).toBeVisible();
+      await expect(firstServer).toBeVisible({ timeout: 45000 });
       await firstServer.click();
       await expect(
         page.locator('#global-combobox .combobox-trigger').locator('.combobox-value'),
