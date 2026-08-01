@@ -1,7 +1,6 @@
 /**
  * WebRTC leak detection + Firefox-only disable toggle.
  *
- * Per PLAN.md §3:
  *   - Leak detection: client-side only (RTCPeerConnection ICE candidate
  *     gathering), portable to both browsers.
  *   - Disable: uses browser.privacy.network.peerConnectionEnabled, Firefox-only.

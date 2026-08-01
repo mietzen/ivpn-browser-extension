@@ -28,6 +28,7 @@
 │   ├── storage/             # Typed wxt/storage wrapper, import/export
 │   ├── webrtc/              # Leak detection + Firefox-only disable
 │   ├── recommendations/     # Generic extension + HTTPS-Only nudges
+│   ├── ui/                  # Reusable UI components (server combobox)
 │   └── badge/               # Toolbar action badge
 ├── tests/                   # vitest unit tests
 │   ├── fixtures/            # Captured API responses (no live calls in CI)
@@ -36,7 +37,6 @@
 ├── .github/
 │   ├── dependabot.yml       # Dependabot config (npm, github-actions)
 │   └── workflows/           # GitHub Actions
-├── PLAN.md                  # Original planning doc (historical)
 ├── wxt.config.ts            # wxt build config
 ├── tsconfig.json
 ├── eslint.config.js
@@ -88,7 +88,7 @@ Without `APP_ID` / `APP_PRIVATE_KEY`, the auto-merge workflow fails open — dep
 ## Testing
 
 ```bash
-# Unit tests (33 tests, mocked fixtures, no network)
+# Unit tests (55 tests, mocked fixtures, no network)
 mise run test
 # (equivalent: npm test)
 
@@ -128,7 +128,7 @@ CI deliberately avoids third-party actions where possible — only first-party (
 
 ## Coding Conventions
 
-- **Source style:** No comments in code (unless explaining a non-obvious gotcha from PLAN.md, e.g. the SOCKS5 host:internal-IP parsing). Follow the surrounding module's style.
+- **Source style:** No comments in code (unless explaining a non-obvious gotcha, e.g. the SOCKS5 host:internal-IP parsing). Follow the surrounding module's style.
 - **Indentation:** 2 spaces, LF line endings (`.editorconfig`).
 - **Module aliases:** `~/*` resolves to the project root (`tsconfig.json` paths).
 - **wxt/browser** for all extension API access; `webextension-polyfill` is a dependency for cross-browser `browser.*` calls.
@@ -139,6 +139,19 @@ CI deliberately avoids third-party actions where possible — only first-party (
 
 ## Reference
 
-- [PLAN.md](./PLAN.md) — historical planning doc with the full feature inventory and ground-truth API endpoints
 - [wxt docs](https://wxt.dev/) — build framework
 - [IVPN API](https://api.ivpn.net/) — public endpoints used
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical labels with default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
