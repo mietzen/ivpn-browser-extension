@@ -42,6 +42,7 @@ export class ServerCombobox {
   private currentValue: string | null = null;
   private config: ComboboxConfig | null = null;
   private isOpen = false;
+  private pendingOpen = false;
   private outsideHandler: ((e: MouseEvent) => void) | null = null;
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
 
@@ -92,6 +93,10 @@ export class ServerCombobox {
     this.config = config;
     this.searchInput.value = '';
     this.renderAll();
+    if (this.pendingOpen) {
+      this.pendingOpen = false;
+      this.open();
+    }
   }
 
   setValue(value: string | null): void {
@@ -125,7 +130,10 @@ export class ServerCombobox {
   }
 
   private open(): void {
-    if (!this.config) return;
+    if (!this.config) {
+      this.pendingOpen = true;
+      return;
+    }
     this.isOpen = true;
     this.popover.hidden = false;
     this.renderList();
