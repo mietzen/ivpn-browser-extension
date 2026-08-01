@@ -3,15 +3,15 @@
  * Privacy, Backup, About.
  */
 
-import { browser } from 'wxt/browser';
 import type { IvpnServer } from '~/lib/ivpn/types';
 import { groupActiveServers } from '~/lib/ivpn/grouping';
 import { parseSocks5Endpoint } from '~/lib/ivpn/client';
 import type { PersistedSettings, ExportPayload } from '~/lib/storage';
 import { exportAll, importAll } from '~/lib/storage';
-import type { DomainRule, GlobalProxy, RuleTarget } from '~/lib/proxy/rules';
+import type { GlobalProxy, RuleTarget } from '~/lib/proxy/rules';
 import { isWebRtcDisableSupported } from '~/lib/webrtc';
 import { isHttpsOnlyAvailable } from '~/lib/recommendations';
+import { sendMessage, loadSettings, loadServers } from '~/lib/messages';
 
 const els = {
   tabs: document.querySelectorAll<HTMLButtonElement>('.tab'),
@@ -41,19 +41,6 @@ const els = {
 
 let settings: PersistedSettings | null = null;
 let servers: IvpnServer[] = [];
-
-async function sendMessage<T = unknown>(type: string, payload?: unknown): Promise<T> {
-  return (await browser.runtime.sendMessage({ type, payload })) as T;
-}
-
-async function loadSettings(): Promise<PersistedSettings> {
-  return sendMessage<PersistedSettings>('settings/get');
-}
-
-async function loadServers(): Promise<IvpnServer[]> {
-  const res = await sendMessage<{ servers?: IvpnServer[] }>('servers/refresh');
-  return res.servers ?? [];
-}
 
 function setActiveTab(name: string): void {
   els.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
@@ -196,36 +183,26 @@ async function addRule(pattern: string, kind: string, server: string, proxyDns: 
     if (!found) return;
     target = { kind: 'socks5', endpoint: parseSocks5Endpoint(found), label: found.gateway };
   }
-  const newRule: DomainRule = { pattern, target, disabled, proxyDns };
-  const filtered = settings.domainRules.filter((r) => r.pattern !== newRule.pattern);
-  settings = await sendMessage<PersistedSettings>('settings/patch', {
-    domainRules: [...filtered, newRule],
-  });
+  settings = await sendMessage('rules/add', { pattern, target, proxyDns, disabled });
   renderRulesTab();
 }
 
 async function removeRule(pattern: string): Promise<void> {
   if (!settings) return;
-  settings = await sendMessage<PersistedSettings>('settings/patch', {
-    domainRules: settings.domainRules.filter((r) => r.pattern !== pattern),
-  });
+  settings = await sendMessage('rules/remove', { pattern });
   renderRulesTab();
 }
 
 async function addExclusion(pattern: string): Promise<void> {
   if (!settings) return;
   if (settings.exclusions.includes(pattern)) return;
-  settings = await sendMessage<PersistedSettings>('settings/patch', {
-    exclusions: [...settings.exclusions, pattern],
-  });
+  settings = await sendMessage('exclusions/add', { pattern });
   renderExclusionsTab();
 }
 
 async function removeExclusion(pattern: string): Promise<void> {
   if (!settings) return;
-  settings = await sendMessage<PersistedSettings>('settings/patch', {
-    exclusions: settings.exclusions.filter((d) => d !== pattern),
-  });
+  settings = await sendMessage('exclusions/remove', { pattern });
   renderExclusionsTab();
 }
 
@@ -240,13 +217,13 @@ async function setGlobal(value: string): Promise<void> {
     if (!found) return;
     global = { kind: 'socks5', endpoint: parseSocks5Endpoint(found), label: found.gateway };
   }
-  settings = await sendMessage<PersistedSettings>('settings/setGlobal', { global });
+  settings = await sendMessage('settings/setGlobal', { global });
   renderProxyTab();
 }
 
 async function toggleWebRtc(): Promise<void> {
   const enabled = !els.webrtcToggle.checked;
-  const res = await sendMessage<{ ok: boolean; reason?: string }>('webrtc/toggle', { enabled });
+  const res = await sendMessage('webrtc/toggle', { enabled });
   if (!res.ok && res.reason === 'unsupported') {
     els.webrtcToggle.checked = false;
     return;
@@ -257,7 +234,7 @@ async function toggleWebRtc(): Promise<void> {
 async function runLeakCheck(): Promise<void> {
   els.leakResult.hidden = false;
   els.leakResult.textContent = 'Running…';
-  const res = await sendMessage<{ hasWebRtc: boolean; leakedAddresses: string[]; error?: string }>('webrtc/leakCheck');
+  const res = await sendMessage('webrtc/leakCheck');
   if (res.error) {
     els.leakResult.textContent = `Error: ${res.error}`;
     return;

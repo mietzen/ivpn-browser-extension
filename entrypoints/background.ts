@@ -18,6 +18,7 @@ import { buildRulesFromSettings, historyStore, resolveMigratedGlobal, serverCach
 import { setProxyRules, clearProxyRules, targetFromServer } from '../lib/proxy';
 import { updateBadge } from '../lib/badge';
 import { refreshWebRtcSetting, detectWebRtcLeak } from '../lib/webrtc';
+import type { MessageMap } from '../lib/messages';
 
 const SERVER_CACHE_TTL_MS = 30 * 60 * 1000;
 
@@ -153,22 +154,6 @@ export default defineBackground(() => {
   });
 });
 
-interface MessageMap {
-  'settings/get': undefined;
-  'settings/patch': Partial<PersistedSettings>;
-  'settings/setGlobal': { global: PersistedSettings['global'] };
-  'servers/refresh': undefined;
-  'servers/list': undefined;
-  'connection/status': undefined;
-  'tabs/active': undefined;
-  'webrtc/leakCheck': undefined;
-  'webrtc/toggle': { enabled: boolean };
-  'history/get': undefined;
-  'history/recordUse': { gateway: string };
-  'history/clear': undefined;
-  'rules/current': undefined;
-}
-
 async function handleMessage(message: unknown): Promise<unknown> {
   if (!message || typeof message !== 'object' || !('type' in message)) {
     return { error: 'bad message' };
@@ -179,19 +164,53 @@ async function handleMessage(message: unknown): Promise<unknown> {
     case 'settings/get': {
       return await settingsStore.get();
     }
-    case 'settings/patch': {
-      const partial = (msg.payload ?? {}) as Partial<PersistedSettings>;
-      const next = await settingsStore.patch(partial);
+    case 'settings/setGlobal': {
+      const { global } = msg.payload as MessageMap['settings/setGlobal']['request'];
+      const next = await settingsStore.patch({ global });
       if (state) state.settings = next;
       await pushCurrentRules();
-      if ('webRtcEnabled' in partial || 'webRtcDisableApplied' in partial) {
-        await refreshWebRtcSetting(next.webRtcEnabled, next.webRtcDisableApplied);
-      }
       return next;
     }
-    case 'settings/setGlobal': {
-      const { global } = msg.payload as { global: PersistedSettings['global'] };
-      const next = await settingsStore.patch({ global });
+    case 'rules/add': {
+      const { pattern, target, proxyDns, disabled } = msg.payload as MessageMap['rules/add']['request'];
+      const current = state?.settings ?? (await settingsStore.get());
+      const next = await settingsStore.patch({
+        domainRules: [
+          ...current.domainRules.filter((r) => r.pattern !== pattern),
+          { pattern, target, proxyDns, disabled },
+        ],
+      });
+      if (state) state.settings = next;
+      await pushCurrentRules();
+      return next;
+    }
+    case 'rules/remove': {
+      const { pattern } = msg.payload as MessageMap['rules/remove']['request'];
+      const current = state?.settings ?? (await settingsStore.get());
+      const next = await settingsStore.patch({
+        domainRules: current.domainRules.filter((r) => r.pattern !== pattern),
+      });
+      if (state) state.settings = next;
+      await pushCurrentRules();
+      return next;
+    }
+    case 'exclusions/add': {
+      const { pattern } = msg.payload as MessageMap['exclusions/add']['request'];
+      const current = state?.settings ?? (await settingsStore.get());
+      if (current.exclusions.includes(pattern)) return current;
+      const next = await settingsStore.patch({
+        exclusions: [...current.exclusions, pattern],
+      });
+      if (state) state.settings = next;
+      await pushCurrentRules();
+      return next;
+    }
+    case 'exclusions/remove': {
+      const { pattern } = msg.payload as MessageMap['exclusions/remove']['request'];
+      const current = state?.settings ?? (await settingsStore.get());
+      const next = await settingsStore.patch({
+        exclusions: current.exclusions.filter((d) => d !== pattern),
+      });
       if (state) state.settings = next;
       await pushCurrentRules();
       return next;
@@ -220,7 +239,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
       return { ok: true, supported: true, ...(await detectWebRtcLeak()) };
     }
     case 'webrtc/toggle': {
-      const { enabled } = msg.payload as { enabled: boolean };
+      const { enabled } = msg.payload as MessageMap['webrtc/toggle']['request'];
       const next = await settingsStore.patch({
         webRtcEnabled: enabled,
         webRtcDisableApplied: !enabled,
@@ -233,7 +252,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
       return await historyStore.getAll();
     }
     case 'history/recordUse': {
-      const { gateway } = msg.payload as { gateway: string };
+      const { gateway } = msg.payload as MessageMap['history/recordUse']['request'];
       await historyStore.recordUse(gateway);
       return { ok: true };
     }
