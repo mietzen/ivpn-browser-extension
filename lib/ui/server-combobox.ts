@@ -20,6 +20,8 @@ export interface ComboboxOption {
   group?: string;
   /** Sub-label (e.g. "Buenos Aires · 16%"). */
   hint?: string;
+  /** Rendered as a read-only row (e.g. the current socks5 marker). */
+  disabled?: boolean;
 }
 
 export interface ComboboxConfig {
@@ -29,6 +31,7 @@ export interface ComboboxConfig {
   placeholder: string;
   emptyText: string;
   onSelect: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export class ServerCombobox {
@@ -136,6 +139,8 @@ export class ServerCombobox {
     }
     this.isOpen = true;
     this.popover.hidden = false;
+    this.config.onOpenChange?.(true);
+    this.fitPopover();
     this.renderList();
     this.searchInput.focus();
     this.outsideHandler = (e) => {
@@ -149,8 +154,11 @@ export class ServerCombobox {
   }
 
   private close(): void {
+    if (!this.isOpen) return;
     this.isOpen = false;
     this.popover.hidden = true;
+    this.popover.style.maxHeight = '';
+    this.config?.onOpenChange?.(false);
     if (this.outsideHandler) {
       document.removeEventListener('mousedown', this.outsideHandler);
       this.outsideHandler = null;
@@ -159,6 +167,16 @@ export class ServerCombobox {
       document.removeEventListener('keydown', this.keyHandler);
       this.keyHandler = null;
     }
+  }
+
+  private fitPopover(): void {
+    // 600px is the max popup window height in Chrome and Firefox. The body
+    // is forced to exactly 600px while a combobox is open (see
+    // html.combobox-open in style.css), so sizing against that constant is
+    // deterministic — no need to wait for the window to actually resize.
+    const rect = this.trigger.getBoundingClientRect();
+    const available = 600 - rect.bottom - 8;
+    this.popover.style.maxHeight = `${Math.max(120, available)}px`;
   }
 
   private renderAll(): void {
@@ -170,8 +188,11 @@ export class ServerCombobox {
   private renderTrigger(): void {
     if (!this.config) return;
     const opt = this.config.options.find((o) => o.value === this.currentValue);
-    this.valueEl.textContent = opt?.label ?? this.config.placeholder;
-    this.trigger.classList.toggle('is-set', !!opt);
+    const server = opt
+      ? undefined
+      : this.config.servers.find((s) => s.gateway === this.currentValue);
+    this.valueEl.textContent = opt?.label ?? server?.gateway ?? this.config.placeholder;
+    this.trigger.classList.toggle('is-set', !!opt || !!server);
   }
 
   private renderQuickPick(): void {
@@ -212,8 +233,29 @@ export class ServerCombobox {
       this.renderGroups(filtered);
       return;
     }
+    this.renderSpecialOptions();
     const groups = groupActiveServers(this.config.servers);
     this.renderGroups(groups);
+  }
+
+  private renderSpecialOptions(): void {
+    if (!this.config) return;
+    for (const opt of this.config.options) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'combobox-server combobox-special';
+      if (opt.disabled) row.disabled = true;
+      if (opt.value === this.currentValue) row.classList.add('selected');
+      row.textContent = opt.label;
+      if (opt.hint) {
+        const hint = document.createElement('span');
+        hint.className = 'combobox-load';
+        hint.textContent = opt.hint;
+        row.appendChild(hint);
+      }
+      row.addEventListener('click', () => this.select(opt.value));
+      this.listEl.appendChild(row);
+    }
   }
 
   private renderGroups(groups: ServerGroup[]): void {
