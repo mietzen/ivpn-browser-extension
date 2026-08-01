@@ -86,7 +86,6 @@ export default [
       '.output/**',
       '.wxt/**',
       'dist/**',
-      'mullvad-browser-extension/**',
       'ivpn-desktop-app/**',
       'tests/e2e/**',
       'playwright-report/**',

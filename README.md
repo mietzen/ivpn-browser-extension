@@ -10,9 +10,7 @@ Brand colors used in this extension are derived from IVPN's official open-source
 
 `ivpn-browser-extension-community` is a unofficial companion browser extension for the [IVPN](https://www.ivpn.net/) desktop app. It routes browser traffic through the IVPN desktop app's SOCKS5 proxy and provides a server picker, per-domain rules, exclusion list, usage history, and WebRTC leak detection.
 
-The extension does not start or stop the VPN connection. It assumes the IVPN desktop app is already connected, the same assumption [mullvad/browser-extension](https://github.com/mullvad/browser-extension) makes.
-
-Inspired by [mullvad/browser-extension](https://github.com/mullvad/browser-extension) (GPLv3) as a feature reference only. No code, assets, or copy from that project has been copied into this one.
+The extension does not start or stop the VPN connection. It assumes the IVPN desktop app is already connected.
 
 ## Prerequisites
 
@@ -109,8 +107,6 @@ CI runs all three on every pull request to `main`. See `.github/workflows/ci.yml
 # Privacy
 
 The extension talks directly to `api.ivpn.net` over HTTPS. No request, selection, IP, or URL passes through any infrastructure operated by this project's maintainers.
-
-The Mullvad browser extension was used as a study aid. It lives in a sibling, gitignored folder, and no part of it has been copied into this repository.
 
 # License
 
