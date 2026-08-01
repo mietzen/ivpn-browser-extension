@@ -7,7 +7,7 @@ import { browser } from 'wxt/browser';
 import type { IvpnServer } from '../ivpn/types';
 import { parseSocks5Endpoint } from '../ivpn/client';
 import type { GlobalProxy, ProxyRules, RuleTarget, Socks5Endpoint } from './rules';
-import { DIRECT_TARGET, isExcluded, findRuleForHost } from './rules';
+import { resolveRuleTarget, findRuleForHost } from './rules';
 import { patternMatches } from './pattern';
 
 type ProxyRequest = {
@@ -37,19 +37,6 @@ export interface ResolveContext {
 
 let currentContext: ResolveContext | null = null;
 let listenerRegistered = false;
-
-function pickRuleTarget(host: string, ctx: ResolveContext): RuleTarget {
-  if (isExcluded(host, ctx.rules.exclusions)) return DIRECT_TARGET;
-  const rule = findRuleForHost(host, ctx.rules.domainRules);
-  if (rule) return rule.target;
-  if (ctx.rules.global.kind === 'socks5') {
-    return { kind: 'socks5', endpoint: ctx.rules.global.endpoint, label: ctx.rules.global.label };
-  }
-  if (ctx.rules.global.kind === 'random') {
-    return { kind: 'random' };
-  }
-  return DIRECT_TARGET;
-}
 
 function randomServer(ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
   const eligible = ctx.servers.filter((s) => s.is_active && !s.in_maintenance);
@@ -81,7 +68,7 @@ async function handleRequest(details: ProxyRequestDetails): Promise<ProxyInfo> {
   }
   if (!host) return { type: 'direct' };
 
-  const target = pickRuleTarget(host, currentContext);
+  const target = resolveRuleTarget(host, currentContext.rules);
   const resolved = resolveEndpoint(target, currentContext);
   if (!resolved) return { type: 'direct' };
 

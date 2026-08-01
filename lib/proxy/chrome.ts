@@ -22,11 +22,11 @@ function resolveToEndpointJs(target: RuleTarget, global: GlobalProxy, hasRandom:
   if (target.kind === 'socks5') return toProxyString(target.endpoint);
   if (target.kind === 'global') {
     if (global.kind === 'socks5') return toProxyString(global.endpoint);
-    if (global.kind === 'random') return hasRandom ? 'randomChoice' : toProxyString(null);
+    if (global.kind === 'random') return hasRandom ? JSON.stringify('randomChoice') : toProxyString(null);
     return toProxyString(null);
   }
   if (target.kind === 'random') {
-    return hasRandom ? 'randomChoice' : toProxyString(null);
+    return hasRandom ? JSON.stringify('randomChoice') : toProxyString(null);
   }
   return toProxyString(null);
 }
@@ -60,8 +60,8 @@ export function generatePacScript(rules: ProxyRules, randomChoiceJs: string): st
 function FindProxyForURL(url, host) {
   var exclusions = [${exclusionList}];
   var domainRules = [${ruleList}];
-  var globalProxy = ${globalJs};
   var randomPool = ${randomChoiceJs};
+  var globalProxy = ${globalJs};
 
   host = (host || '').toLowerCase().replace(/\\.+$/, '');
   if (!host) return 'DIRECT';
