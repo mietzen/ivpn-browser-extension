@@ -43,8 +43,11 @@ test.describe('popup', () => {
       testInfo.project.name as 'chromium' | 'firefox',
     );
     try {
-      const page = await openPopup(context, extensionUrl);
-      await page.evaluate(() => {
+      // Seed usage history BEFORE the popup opens — the popup snapshots
+      // history at init, so recording afterwards wouldn't appear.
+      const seed = await context.newPage();
+      await seed.goto(`${extensionUrl}/popup.html`);
+      await seed.evaluate(() => {
         return new Promise<string>((resolve) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const w = (globalThis as any).chrome?.runtime;
@@ -53,6 +56,9 @@ test.describe('popup', () => {
           );
         });
       });
+      await seed.close();
+
+      const page = await openPopup(context, extensionUrl);
       await page.locator('.combobox-trigger').first().click();
       await expect(page.locator('.combobox-quickpick')).toBeVisible();
       await expect(page.locator('.combobox-search input')).toBeVisible();

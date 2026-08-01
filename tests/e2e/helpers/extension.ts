@@ -191,7 +191,7 @@ export async function openOptionsPage(context: BrowserContext, extensionUrl: str
   await page.waitForSelector('.tab-panel.active', { timeout: 15000 });
   // Wait for the live server select to populate. Live API can be slow.
   await page.waitForFunction(
-    () => document.querySelectorAll('#global-server option').length > 0,
+    () => document.querySelectorAll('#global-proxy option').length > 0,
     null,
     { timeout: 45000 },
   );
