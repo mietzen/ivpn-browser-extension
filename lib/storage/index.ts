@@ -1,21 +1,51 @@
 /**
- * Settings + per-domain rules + history. All persisted in browser.storage.local
- * via wxt's typed storage helpers. Versioned so future schema changes can
- * migrate cleanly.
+ * Settings + per-domain rules + history. Persisted via wxt/utils/storage.
+ * Storage is versioned so future schema changes migrate on read.
+ *
+ * v1 schema (legacy): { mode, globalGateway, domainRules, exclusions, ... }
+ * v2 schema (current): { global, domainRules, exclusions, ... }
+ *
+ * Migration happens lazily in `settingsStore.get()` — v1 values are
+ * rewritten to v2 and re-saved on first read.
  */
 
 import { storage } from 'wxt/utils/storage';
 import type { IvpnServer } from '../ivpn/types';
-import type { DomainRule, ProxyMode, ProxyRules, ProxyTarget } from '../proxy/rules';
-import { DIRECT_TARGET, emptyRules, targetFromServer } from '../proxy/rules';
+import type {
+  DomainRule,
+  GlobalProxy,
+  ProxyRules,
+  RuleTarget,
+} from '../proxy/rules';
+import { DIRECT_GLOBAL, DIRECT_TARGET } from '../proxy/rules';
 
-const STORAGE_VERSION = 1;
+export const STORAGE_VERSION = 2;
+const SETTINGS_KEY = 'local:settings';
+const HISTORY_KEY = 'local:history';
+const CACHE_KEY = 'local:serverCache';
 
 export interface PersistedSettings {
   version: number;
-  mode: ProxyMode;
-  globalGateway: string | null;
+  global: GlobalProxy;
   domainRules: DomainRule[];
+  exclusions: string[];
+  webRtcEnabled: boolean;
+  webRtcDisableApplied: boolean;
+  httpsOnlyNudgeDismissed: boolean;
+  extensionRecommendationsDismissed: boolean;
+}
+
+export interface LegacyPersistedSettingsV1 {
+  version?: number;
+  mode: 'direct' | 'global' | 'random' | string;
+  globalGateway: string | null;
+  domainRules: Array<{
+    domain: string;
+    endpoint: { host: string; port: number } | null;
+    label: string;
+    disabled: boolean;
+    proxyDns: boolean;
+  }>;
   exclusions: string[];
   webRtcEnabled: boolean;
   webRtcDisableApplied: boolean;
@@ -34,15 +64,10 @@ export interface ServerCache {
   servers: IvpnServer[];
 }
 
-const SETTINGS_KEY = 'local:settings';
-const HISTORY_KEY = 'local:history';
-const CACHE_KEY = 'local:serverCache';
-
 function defaultSettings(): PersistedSettings {
   return {
     version: STORAGE_VERSION,
-    mode: 'direct',
-    globalGateway: null,
+    global: DIRECT_GLOBAL,
     domainRules: [],
     exclusions: [],
     webRtcEnabled: true,
@@ -54,10 +79,11 @@ function defaultSettings(): PersistedSettings {
 
 export const settingsStore = {
   async get(): Promise<PersistedSettings> {
-    const value = await storage.getItem<PersistedSettings>(SETTINGS_KEY);
-    if (!value) return defaultSettings();
-    if (value.version !== STORAGE_VERSION) {
-      const migrated = migrateSettings(value);
+    const raw = await storage.getItem<unknown>(SETTINGS_KEY);
+    if (!raw) return defaultSettings();
+    const value = raw as PersistedSettings;
+    if ((value.version ?? 1) < STORAGE_VERSION) {
+      const migrated = migrate(value as unknown as LegacyPersistedSettingsV1);
       await storage.setItem(SETTINGS_KEY, migrated);
       return migrated;
     }
@@ -73,6 +99,60 @@ export const settingsStore = {
     return next;
   },
 };
+
+function migrate(old: LegacyPersistedSettingsV1): PersistedSettings {
+  const global: GlobalProxy =
+    old.mode === 'global' && old.globalGateway
+      ? { kind: 'socks5', endpoint: { host: '__pending__', port: 0 }, label: old.globalGateway }
+      : DIRECT_GLOBAL;
+  const domainRules: DomainRule[] = old.domainRules.map((r) => {
+    const target: RuleTarget = r.endpoint
+      ? { kind: 'socks5', endpoint: r.endpoint, label: r.label }
+      : DIRECT_TARGET;
+    return { pattern: r.domain, target, disabled: r.disabled, proxyDns: r.proxyDns };
+  });
+  return {
+    ...defaultSettings(),
+    version: STORAGE_VERSION,
+    global,
+    domainRules,
+    exclusions: old.exclusions,
+    webRtcEnabled: old.webRtcEnabled,
+    webRtcDisableApplied: old.webRtcDisableApplied,
+    httpsOnlyNudgeDismissed: old.httpsOnlyNudgeDismissed,
+    extensionRecommendationsDismissed: old.extensionRecommendationsDismissed,
+  };
+}
+
+/**
+ * After migration, the global may have an `endpoint.host === '__pending__'`
+ * placeholder. Resolve it against the live server list to get a real
+ * endpoint. Called by the background after fetching servers, before the
+ * first hydrate push.
+ */
+export function resolveMigratedGlobal(
+  settings: PersistedSettings,
+  servers: IvpnServer[],
+): { settings: PersistedSettings; global: GlobalProxy } {
+  if (settings.global.kind === 'socks5' && settings.global.endpoint.host === '__pending__') {
+    const label = settings.global.label;
+    const server = servers.find((s) => s.gateway === label);
+    if (!server) {
+      const next: PersistedSettings = { ...settings, global: DIRECT_GLOBAL };
+      return { settings: next, global: DIRECT_GLOBAL };
+    }
+    const endpoint = parseSocks5EndpointLocal(server);
+    const global: GlobalProxy = { kind: 'socks5', endpoint, label: server.gateway };
+    return { settings: { ...settings, global }, global };
+  }
+  return { settings, global: settings.global };
+}
+
+function parseSocks5EndpointLocal(server: IvpnServer): { host: string; port: number } {
+  const colon = server.socks5.indexOf(':');
+  const host = colon === -1 ? server.socks5 : server.socks5.slice(0, colon);
+  return { host, port: 1080 };
+}
 
 export const historyStore = {
   async getAll(): Promise<Record<string, ServerHistoryEntry>> {
@@ -105,43 +185,25 @@ export const serverCacheStore = {
   },
 };
 
-function migrateSettings(old: PersistedSettings): PersistedSettings {
-  return { ...defaultSettings(), ...old, version: STORAGE_VERSION };
-}
+export function buildRulesFromSettings(settings: PersistedSettings, servers: IvpnServer[]): ProxyRules {
+  const cleanedRules = settings.domainRules
+    .map((r): DomainRule | null => {
+      const t = r.target;
+      if (t.kind === 'socks5') {
+        const exists = servers.some((s) => s.gateway === t.label);
+        if (!exists) return null;
+      }
+      return r;
+    })
+    .filter((r): r is DomainRule => r !== null);
 
-/**
- * Build a ProxyRules snapshot from persisted settings + the current server list.
- */
-export function buildRulesFromSettings(
-  settings: PersistedSettings,
-  servers: IvpnServer[],
-  randomTarget?: ProxyTarget | null,
-): ProxyRules {
-  const global = settings.globalGateway
-    ? servers.find((s) => s.gateway === settings.globalGateway)
-    : undefined;
-  const globalTarget: ProxyTarget = global ? targetFromServer(global) : DIRECT_TARGET;
-
-  const rules: ProxyRules = {
-    ...emptyRules(),
-    mode: settings.mode,
-    globalTarget,
-    domainRules: settings.domainRules.filter((r) => {
-      if (!r.endpoint) return true;
-      return servers.some(
-        (s) => s.gateway.toLowerCase() === r.label.toLowerCase(),
-      );
-    }),
+  return {
+    global: settings.global,
+    domainRules: cleanedRules,
     exclusions: settings.exclusions,
-    randomTarget: randomTarget ?? null,
   };
-  return rules;
 }
 
-/**
- * Import/export of all user-visible state. Versioned envelope so future schema
- * changes can refuse imports or attempt migration.
- */
 export interface ExportPayload {
   version: number;
   exportedAt: number;
@@ -150,10 +212,7 @@ export interface ExportPayload {
 }
 
 export async function exportAll(): Promise<ExportPayload> {
-  const [settings, history] = await Promise.all([
-    settingsStore.get(),
-    historyStore.getAll(),
-  ]);
+  const [settings, history] = await Promise.all([settingsStore.get(), historyStore.getAll()]);
   return { version: STORAGE_VERSION, exportedAt: Date.now(), settings, history };
 }
 

@@ -1,14 +1,18 @@
 /**
- * Popup UI controller. Talks to the background via runtime.sendMessage.
- * No business logic here beyond view state + delegation to background.
+ * Popup UI controller. Two sections (Global, Current Website) each
+ * use a ServerCombobox. The current tab's host is fetched via the
+ * background; on save, a per-domain rule is upserted in storage.
  */
 
 import { browser } from 'wxt/browser';
 import type { IvpnServer } from '~/lib/ivpn/types';
-import { groupActiveServers, searchGroups, type ServerGroup } from '~/lib/ivpn/grouping';
 import type { PersistedSettings, ServerHistoryEntry } from '~/lib/storage';
-
-type Mode = 'direct' | 'global' | 'random';
+import {
+  ServerCombobox,
+  SPECIAL_VALUES,
+  buildCurrentSiteOptions,
+  type ComboboxOption,
+} from '~/lib/ui/server-combobox';
 
 interface StatusEl {
   panel: HTMLElement;
@@ -43,21 +47,18 @@ const status = (() => {
 
 const els = {
   openOptions: document.getElementById('open-options') as HTMLButtonElement,
-  modeButtons: document.querySelectorAll<HTMLButtonElement>('.mode-btn'),
-  pickerSearch: document.getElementById('picker-search') as HTMLInputElement,
-  pickerList: document.getElementById('picker-list') as HTMLDivElement,
-  historySection: document.getElementById('history-section') as HTMLElement,
-  historyList: document.getElementById('history-list') as HTMLDivElement,
+  currentHost: document.getElementById('current-host') as HTMLElement,
+  saveRule: document.getElementById('save-rule-btn') as HTMLButtonElement,
 };
-
-interface ServersResponse {
-  ok: boolean;
-  servers?: IvpnServer[];
-  error?: string;
-}
 
 let currentSettings: PersistedSettings | null = null;
 let allServers: IvpnServer[] = [];
+let currentTabHost: string | null = null;
+
+const globalCombo = new ServerCombobox();
+const currentSiteCombo = new ServerCombobox();
+document.getElementById('global-combobox')!.appendChild(globalCombo.element);
+document.getElementById('current-site-combobox')!.appendChild(currentSiteCombo.element);
 
 async function sendMessage<T = unknown>(type: string, payload?: unknown): Promise<T> {
   return (await browser.runtime.sendMessage({ type, payload })) as T;
@@ -69,19 +70,25 @@ async function loadSettings(): Promise<PersistedSettings> {
 
 async function loadServers(): Promise<IvpnServer[]> {
   try {
-    const cache = await sendMessage<{ servers?: IvpnServer[]; error?: string }>('servers/refresh');
-    if ('error' in cache) return [];
-    return (cache as unknown as ServersResponse).servers ?? [];
+    const res = await sendMessage<{ servers?: IvpnServer[] }>('servers/refresh');
+    return res.servers ?? [];
   } catch {
     return [];
   }
 }
 
-async function patchSettings(patch: Partial<PersistedSettings>): Promise<PersistedSettings> {
-  return sendMessage<PersistedSettings>('settings/patch', patch);
+async function getActiveTabHost(): Promise<string | null> {
+  const res = await sendMessage<{ host: string | null }>('tabs/active');
+  return res.host;
 }
 
-function setStatus(state: 'checking' | 'vpn' | 'no-vpn' | 'error', headline: string, ip?: string, location?: string, tunnel?: string): void {
+function setStatus(
+  state: 'checking' | 'vpn' | 'no-vpn' | 'error',
+  headline: string,
+  ip?: string,
+  location?: string,
+  tunnel?: string,
+): void {
   status.panel.dataset.state = state;
   status.headline.textContent = headline;
 
@@ -118,101 +125,134 @@ async function refreshStatus(): Promise<void> {
   }
 }
 
-function renderModeButtons(mode: Mode | 'custom'): void {
-  els.modeButtons.forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
+function reloadComboboxes(
+  history: Record<string, ServerHistoryEntry>,
+  _currentSettingsRef: PersistedSettings,
+): void {
+  if (!currentSettings) return;
+
+  const global = currentSettings.global;
+  const currentGlobalValue = global.kind === 'direct' ? SPECIAL_VALUES.globalDirect : SPECIAL_VALUES.globalSocks5;
+  const globalSpecialOptions: ComboboxOption[] = [
+    { value: SPECIAL_VALUES.globalDirect, label: 'Direct' },
+    { value: SPECIAL_VALUES.globalSocks5, label: global.kind === 'socks5' ? global.label : '(select a server)' },
+  ];
+  globalCombo.setOptions({
+    options: globalSpecialOptions,
+    history,
+    servers: allServers,
+    placeholder: 'Direct',
+    emptyText: 'No servers available',
+    onSelect: (value) => {
+      if (value === SPECIAL_VALUES.globalDirect) void onGlobalSelect(value, history);
+      else void pickGlobalServer(value);
+    },
   });
-}
+  globalCombo.setValue(currentGlobalValue);
 
-function renderPicker(groups: ServerGroup[], selectedGateway: string | null): void {
-  els.pickerList.innerHTML = '';
-  if (groups.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'picker-server';
-    empty.textContent = 'No servers match.';
-    empty.style.color = 'var(--fg-faint)';
-    els.pickerList.appendChild(empty);
-    return;
-  }
-  for (const group of groups) {
-    const wrap = document.createElement('div');
-    wrap.className = 'picker-group';
+  let currentTargetValue: string;
+  const existingRule = currentTabHost
+    ? currentSettings.domainRules.find((r) => r.pattern === currentTabHost)
+    : undefined;
 
-    const country = document.createElement('div');
-    country.className = 'picker-country';
-    country.textContent = `${group.country} (${group.countryCode})`;
-    wrap.appendChild(country);
-
-    for (const city of group.cities) {
-      const cityEl = document.createElement('div');
-      cityEl.className = 'picker-city';
-      cityEl.textContent = city.city;
-      wrap.appendChild(cityEl);
-
-      for (const server of city.servers) {
-        const row = document.createElement('div');
-        row.className = 'picker-server';
-        if (server.gateway === selectedGateway) row.classList.add('selected');
-        row.dataset.gateway = server.gateway;
-        row.setAttribute('role', 'option');
-
-        const left = document.createElement('span');
-        left.textContent = server.gateway;
-        const right = document.createElement('span');
-        right.className = 'load';
-        // IVPN API returns `load` as a percentage (e.g. 25.96), not a
-        // ratio. Display as-is with one decimal place.
-        right.textContent = `${server.load.toFixed(1)}%`;
-        row.appendChild(left);
-        row.appendChild(right);
-        row.addEventListener('click', () => onPickServer(server.gateway));
-        cityEl.appendChild(row);
-      }
+  if (existingRule) {
+    switch (existingRule.target.kind) {
+      case 'direct': currentTargetValue = SPECIAL_VALUES.siteDirect; break;
+      case 'random': currentTargetValue = SPECIAL_VALUES.siteRandom; break;
+      case 'global': currentTargetValue = SPECIAL_VALUES.siteInherit; break;
+      case 'socks5': currentTargetValue = existingRule.target.label; break;
     }
-    els.pickerList.appendChild(wrap);
+  } else {
+    currentTargetValue = SPECIAL_VALUES.siteInherit;
   }
+
+  currentSiteCombo.setOptions({
+    options: buildCurrentSiteOptions(global),
+    history,
+    servers: allServers,
+    placeholder: 'Inherit from global',
+    emptyText: 'No servers available',
+    onSelect: (value) => onCurrentSiteSelect(value),
+  });
+  currentSiteCombo.setValue(currentTargetValue);
+
+  els.saveRule.disabled = !currentTabHost || currentTargetValue === SPECIAL_VALUES.siteInherit;
 }
 
-function renderHistory(history: Record<string, ServerHistoryEntry>, servers: IvpnServer[]): void {
-  const entries = Object.values(history).sort((a, b) => b.lastUsed - a.lastUsed).slice(0, 5);
-  if (entries.length === 0) {
-    els.historySection.hidden = true;
+async function onGlobalSelect(value: string, history: Record<string, ServerHistoryEntry>): Promise<void> {
+  if (!currentSettings) return;
+  if (value === SPECIAL_VALUES.globalDirect) {
+    currentSettings = await sendMessage<PersistedSettings>('settings/setGlobal', {
+      global: { kind: 'direct' },
+    });
+  } else {
+    // 'global:socks5' means "let me pick". Open the popover to pick.
+    // When user picks a server, we receive its gateway value.
     return;
   }
-  els.historySection.hidden = false;
-  els.historyList.innerHTML = '';
-  for (const entry of entries) {
-    const server = servers.find((s) => s.gateway === entry.gateway);
-    if (!server) continue;
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'history-chip';
-    chip.textContent = server.gateway;
-    chip.title = `${server.city} · ${server.load.toFixed(1)}%`;
-    chip.addEventListener('click', () => onPickServer(server.gateway));
-    els.historyList.appendChild(chip);
+  reloadComboboxes(history, currentSettings);
+}
+
+async function pickGlobalServer(gateway: string): Promise<void> {
+  if (!currentSettings) return;
+  const server = allServers.find((s) => s.gateway === gateway);
+  if (!server) return;
+  currentSettings = await sendMessage<PersistedSettings>('settings/setGlobal', {
+    global: { kind: 'socks5', endpoint: parseEndpoint(server), label: server.gateway },
+  });
+  await sendMessage('history/recordUse', { gateway });
+  const updated = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
+  if (!currentSettings) return;
+  reloadComboboxes(updated ?? {}, currentSettings);
+}
+
+function parseEndpoint(server: IvpnServer): { host: string; port: number } {
+  const colon = server.socks5.indexOf(':');
+  return { host: colon === -1 ? server.socks5 : server.socks5.slice(0, colon), port: 1080 };
+}
+
+async function onCurrentSiteSelect(value: string): Promise<void> {
+  if (!currentTabHost) return;
+  if (value === SPECIAL_VALUES.siteInherit) {
+    els.saveRule.disabled = true;
+  } else {
+    els.saveRule.disabled = false;
   }
 }
 
-function applySearch(query: string, selectedGateway: string | null): void {
-  const groups = groupActiveServers(allServers);
-  const filtered = searchGroups(groups, query);
-  renderPicker(filtered, selectedGateway);
-}
+async function saveRule(): Promise<void> {
+  if (!currentTabHost || !currentSettings) return;
+  const value = currentSiteCombo.getValue();
+  if (!value) return;
 
-async function onPickServer(gateway: string): Promise<void> {
-  currentSettings = await patchSettings({ mode: 'global', globalGateway: gateway });
-  await sendMessage('history/recordUse', { gateway });
-  const history = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
-  renderHistory(history, allServers);
-  renderModeButtons(currentSettings.mode);
-  applySearch(els.pickerSearch.value, currentSettings.globalGateway);
-}
+  const existingIdx = currentSettings.domainRules.findIndex((r) => r.pattern === currentTabHost);
+  const nextRules = [...currentSettings.domainRules];
 
-async function onModeChange(mode: Mode | 'custom'): Promise<void> {
-  currentSettings = await patchSettings({ mode });
-  renderModeButtons(mode);
-  applySearch(els.pickerSearch.value, currentSettings.globalGateway);
+  let target;
+  if (value === SPECIAL_VALUES.siteDirect) {
+    target = { kind: 'direct' as const };
+  } else if (value === SPECIAL_VALUES.siteRandom) {
+    target = { kind: 'random' as const };
+  } else {
+    const server = allServers.find((s) => s.gateway === value);
+    if (!server) return;
+    target = { kind: 'socks5' as const, endpoint: parseEndpoint(server), label: server.gateway };
+  }
+
+  const rule = {
+    pattern: currentTabHost,
+    target,
+    disabled: false,
+    proxyDns: false,
+  };
+
+  if (existingIdx >= 0) nextRules[existingIdx] = rule;
+  else nextRules.push(rule);
+
+  currentSettings = await sendMessage<PersistedSettings>('settings/patch', {
+    domainRules: nextRules,
+  });
+  els.saveRule.disabled = true;
 }
 
 async function openOptions(): Promise<void> {
@@ -225,24 +265,60 @@ async function openOptions(): Promise<void> {
 
 async function init(): Promise<void> {
   currentSettings = await loadSettings();
+  const [history, tabHost] = await Promise.all([
+    sendMessage<Record<string, ServerHistoryEntry>>('history/get'),
+    getActiveTabHost(),
+  ]);
+  currentTabHost = tabHost;
+  if (currentTabHost) {
+    els.currentHost.textContent = `(${currentTabHost})`;
+  } else {
+    els.currentHost.textContent = '(no active page)';
+  }
+
   allServers = await loadServers();
-  const history = await sendMessage<Record<string, ServerHistoryEntry>>('history/get');
 
-  renderModeButtons(currentSettings.mode);
-  applySearch('', currentSettings.globalGateway);
-  renderHistory(history, allServers);
-
-  els.modeButtons.forEach((btn) => {
-    btn.addEventListener('click', () => onModeChange(btn.dataset.mode as Mode));
+  globalCombo.element.addEventListener('click', (e) => {
+    if (e.target instanceof HTMLElement && e.target.closest('.combobox-server')) return;
   });
-  els.pickerSearch.addEventListener('input', () => {
-    applySearch(els.pickerSearch.value, currentSettings?.globalGateway ?? null);
+
+  // Wire up the global combobox so picking a server (not the special
+  // 'Direct' option) sets the global gateway.
+  globalCombo.setOptions({
+    options: [],
+    history: history ?? {},
+    servers: allServers,
+    placeholder: 'Direct',
+    emptyText: 'No servers available',
+    onSelect: (value) => {
+      if (value === SPECIAL_VALUES.globalDirect) {
+        void onGlobalSelect(value, history ?? {});
+      } else {
+        // Picked a server from the popover list
+        void pickGlobalServer(value);
+      }
+    },
+  });
+
+  currentSiteCombo.setOptions({
+    options: [],
+    history: history ?? {},
+    servers: allServers,
+    placeholder: 'Inherit from global',
+    emptyText: 'No servers available',
+    onSelect: (value) => void onCurrentSiteSelect(value),
+  });
+
+  reloadComboboxes(history ?? {}, currentSettings);
+
+  els.openOptions.addEventListener('click', () => {
+    openOptions().catch((err) => console.error(err));
+  });
+  els.saveRule.addEventListener('click', () => {
+    saveRule().catch((err) => console.error(err));
   });
   status.refresh.addEventListener('click', () => {
     refreshStatus().catch((err) => console.error(err));
-  });
-  els.openOptions.addEventListener('click', () => {
-    openOptions().catch((err) => console.error(err));
   });
 
   refreshStatus().catch((err) => console.error(err));

@@ -132,7 +132,7 @@ CI deliberately avoids third-party actions where possible — only first-party (
 - **Indentation:** 2 spaces, LF line endings (`.editorconfig`).
 - **Module aliases:** `~/*` resolves to the project root (`tsconfig.json` paths).
 - **wxt/browser** for all extension API access; `webextension-polyfill` is a dependency for cross-browser `browser.*` calls.
-- **No copying from reference projects.** Mullvad browser extension and IVPN desktop app clones are gitignored siblings, study aids only. If a function looks suspiciously close to either, rewrite it.
+- **No copying from reference projects.** The IVPN desktop app clone is a gitignored sibling, study aid only. If a function looks suspiciously close to an external reference project, rewrite it.
 - **Community disclosure** is mandatory in product UI: popup footer + options About tab + README. The text is short and explicit (see current README "Disclaimer" block for the canonical wording).
 - **Brand colors** (CSS variables `--ivpn-red` and `--ivpn-blue`) are sourced from IVPN's official open-source desktop app (`github.com/ivpn/desktop-app`, GPLv3): red `#FF3344` from `ui/src/assets/logo.svg` (official wordmark), blue `#449cf8` from `ui/src/components/scss/settings.scss` (selected-state border). The values are visual reference only; do not copy logos, icons, or other IVPN IP into this project.
 - **Tier 3 features** (DNS-leak check, DoH nudges) were researched and dropped from v1 scope. Do not re-add without confirming the underlying IVPN service exists.
@@ -142,4 +142,3 @@ CI deliberately avoids third-party actions where possible — only first-party (
 - [PLAN.md](./PLAN.md) — historical planning doc with the full feature inventory and ground-truth API endpoints
 - [wxt docs](https://wxt.dev/) — build framework
 - [IVPN API](https://api.ivpn.net/) — public endpoints used
-- [mullvad/browser-extension](https://github.com/mullvad/browser-extension) — feature reference (study only, never copy)

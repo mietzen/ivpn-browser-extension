@@ -8,37 +8,40 @@ test.describe('persistence', () => {
     }
   });
 
-  test('mode setting persists to storage', async ({}, testInfo) => {
+  test('global proxy choice persists to storage', async ({}, testInfo) => {
     const { context, extensionUrl, cleanup } = await launchWithExtension(
       testInfo.project.name as 'chromium' | 'firefox',
     );
     try {
-      // Click random mode and verify the UI updates.
+      // Pick the first live server in the global combobox and verify the
+      // UI updates.
       const page = await openPopup(context, extensionUrl);
-      await page.click('.mode-btn[data-mode="random"]');
-      await expect(page.locator('.mode-btn[data-mode="random"]')).toHaveClass(/active/);
+      await page.locator('#global-combobox .combobox-trigger').click();
+      const firstServer = page.locator('#global-combobox .combobox-server').first();
+      await expect(firstServer).toBeVisible({ timeout: 45000 });
+      await firstServer.click();
+      await expect(
+        page.locator('#global-combobox .combobox-trigger').locator('.combobox-value'),
+      ).not.toHaveText('Direct');
 
       // Ask the background what it sees. This is the same code path the
       // popup uses on next load — so this verifies the persistence
       // contract end-to-end without racing a UI reload.
-      const storedMode = await page.evaluate(async () => {
-        return new Promise<string>((resolve, reject) => {
+      const storedGlobal = await page.evaluate(async () => {
+        return new Promise<{ kind?: string; label?: string }>((resolve, reject) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const w = (globalThis as any).chrome?.runtime ?? (globalThis as any).browser?.runtime;
           if (!w) {
             reject(new Error('extension runtime not found in popup context'));
             return;
           }
-          w.sendMessage({ type: 'settings/get' }, (response: { mode?: string }) => {
-            resolve(response?.mode ?? '');
+          w.sendMessage({ type: 'settings/get' }, (response: { global?: { kind: string; label: string } }) => {
+            resolve(response?.global ?? {});
           });
         });
       });
-      expect(storedMode, 'background reports mode=random after click').toBe('random');
-
-      // Reset so other tests aren't affected by leaked state.
-      await page.click('.mode-btn[data-mode="direct"]');
-      await expect(page.locator('.mode-btn[data-mode="direct"]')).toHaveClass(/active/);
+      expect(storedGlobal.kind, 'background reports socks5 global after pick').toBe('socks5');
+      expect(storedGlobal.label, 'background reports the picked gateway').toBeTruthy();
     } finally {
       await cleanup();
     }

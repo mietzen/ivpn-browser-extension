@@ -3,57 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IVPN Companion (Community) — Options</title>
+    <title>IVPN Proxy-Switcher — Options</title>
     <link rel="stylesheet" href="~/entrypoints/options/style.css" />
   </head>
   <body>
     <main class="options">
       <header class="options-header">
-        <h1>IVPN Companion <span class="badge">Community</span></h1>
-        <p class="tagline">Unofficial, community-maintained. Not affiliated with IVPN Limited.</p>
+        <h1>IVPN Proxy-Switcher</h1>
+        <p class="tagline">Routes browser traffic through the IVPN desktop app SOCKS5 proxy.</p>
       </header>
 
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="proxy" role="tab">Proxy</button>
-        <button class="tab" data-tab="domains" role="tab">Per-domain</button>
+        <button class="tab" data-tab="rules" role="tab">Per-domain rules</button>
+        <button class="tab" data-tab="exclusions" role="tab">Never proxy</button>
         <button class="tab" data-tab="privacy" role="tab">Privacy</button>
         <button class="tab" data-tab="backup" role="tab">Backup</button>
         <button class="tab" data-tab="about" role="tab">About</button>
       </nav>
 
       <section class="tab-panel active" data-tab="proxy">
-        <h2>Proxy mode</h2>
-        <div class="mode-row">
-          <label><input type="radio" name="mode" value="direct" /> Direct (no proxy)</label>
-          <label><input type="radio" name="mode" value="global" /> Global (use selected server)</label>
-          <label><input type="radio" name="mode" value="random" /> Random (new server per toggle)</label>
-        </div>
-        <h2>Global server</h2>
-        <select id="global-server"></select>
-        <button id="refresh-servers" class="text-btn" type="button">Refresh server list</button>
+        <h2>Global proxy</h2>
+        <p class="hint">The default for traffic that doesn't match any rule or exclusion.</p>
+        <select id="global-proxy"></select>
       </section>
 
-      <section class="tab-panel" data-tab="domains">
+      <section class="tab-panel" data-tab="rules">
         <h2>Per-domain rules</h2>
-        <p class="hint">Add a domain to always use a specific server. Subdomains inherit the rule.</p>
+        <p class="hint">Patterns can be a domain (<code>example.com</code>), subdomain wildcard (<code><em>.example.com</em></code>), or IP CIDR (<code>192.168.0.0/16</code>). First match wins.</p>
         <form id="rule-form" class="rule-form">
-          <input type="text" id="rule-domain" placeholder="example.com" required />
-          <select id="rule-server" required></select>
-          <label class="inline"><input type="checkbox" id="rule-dns" /> Proxy DNS</label>
+          <input type="text" id="rule-pattern" placeholder="example.com or *.example.com" required />
+          <select id="rule-target-kind" required>
+            <option value="direct">Direct</option>
+            <option value="global">Inherit from global</option>
+            <option value="random">Random</option>
+          </select>
+          <select id="rule-target-server" hidden></select>
+          <label class="inline"><input type="checkbox" id="rule-proxy-dns" /> Proxy DNS</label>
           <label class="inline"><input type="checkbox" id="rule-disabled" /> Disabled</label>
           <button type="submit">Add</button>
         </form>
         <table class="rule-table" id="rule-table">
           <thead>
-            <tr><th>Domain</th><th>Server</th><th>DNS</th><th>Status</th><th></th></tr>
+            <tr><th>Pattern</th><th>Target</th><th>DNS</th><th>Status</th><th></th></tr>
           </thead>
           <tbody></tbody>
         </table>
+      </section>
 
+      <section class="tab-panel" data-tab="exclusions">
         <h2>Never proxy</h2>
-        <p class="hint">Hosts in this list always go direct, regardless of any other rule.</p>
+        <p class="hint">Traffic to these hosts is never proxied. Same pattern format as rules (domains, wildcards, IP CIDR).</p>
         <form id="exclusion-form" class="rule-form">
-          <input type="text" id="exclusion-domain" placeholder="internal.lan" required />
+          <input type="text" id="exclusion-pattern" placeholder="*.lan or 10.0.0.0/8" required />
           <button type="submit">Add</button>
         </form>
         <ul id="exclusion-list" class="exclusion-list"></ul>
@@ -66,19 +68,16 @@
         <pre id="leak-result" class="result" hidden></pre>
         <label class="inline">
           <input type="checkbox" id="webrtc-toggle" />
-          <span id="webrtc-toggle-label">Block WebRTC (disable peer connection)</span>
+          <span id="webrtc-toggle-label">Block WebRTC (Firefox-only one-click toggle)</span>
         </label>
 
         <h2>HTTPS-Only mode</h2>
         <p id="https-only-state" class="hint">Checking…</p>
-
-        <h2>Recommended extensions</h2>
-        <ul id="recommendation-list" class="rec-list"></ul>
       </section>
 
       <section class="tab-panel" data-tab="backup">
         <h2>Import / export</h2>
-        <p class="hint">Settings and usage history as a JSON blob. Server list is refetched on import — only saved state is restored.</p>
+        <p class="hint">Settings, rules, and history as a JSON blob. The server list is fetched fresh on import — only saved state is restored.</p>
         <button id="export-btn" class="primary" type="button">Download export</button>
         <label class="import-label">
           <span>Import from file</span>
@@ -92,27 +91,8 @@
 
       <section class="tab-panel" data-tab="about">
         <h2>About this extension</h2>
-        <p>
-          <strong>This extension is not related to or developed by IVPN Limited. No relationship between the developer(s) of this extension and IVPN Limited exists.</strong>
-        </p>
-        <p>
-          All trademarks, logos and brand names are the property of their respective owners. All company, product and service names used in this extension are for identification purposes only. Use of these names, trademarks and brands does not imply endorsement.
-        </p>
-        <p>
-          Brand colors used in this extension are derived from IVPN's official open-source desktop application (<a href="https://github.com/ivpn/desktop-app" target="_blank" rel="noopener noreferrer"><code>ivpn/desktop-app</code></a>, GPLv3), used as a visual reference only.
-        </p>
-        <p>
-          Talks directly to <code>api.ivpn.net</code> over HTTPS. No request, IP, selection, or URL passes through any infrastructure operated by this project's maintainers.
-        </p>
-        <p>
-          Inspired by <a href="https://github.com/mullvad/browser-extension" target="_blank" rel="noopener noreferrer"><code>mullvad/browser-extension</code></a> (GPLv3) as a feature reference only. No code, assets, or copy from that project has been copied into this one.
-        </p>
-        <p>
-          License: MIT. See <a href="https://github.com/mietzen/ivpn-browser-extension-community" target="_blank" rel="noopener noreferrer">repository</a>.
-        </p>
-        <p class="small">
-          <code>IVPN</code> is a registered trademark of IVPN Limited. Use of the mark here is referential only and does not imply endorsement.
-        </p>
+        <p>Routes browser traffic through the IVPN desktop app SOCKS5 proxy.</p>
+        <p class="small">Not affiliated with IVPN Limited. Talks directly to <code>api.ivpn.net</code>; no data passes through project maintainers.</p>
       </section>
     </main>
     <script type="module" src="~/entrypoints/options/main.ts"></script>

@@ -15,9 +15,10 @@ test.describe('install', () => {
 
       const page = await context.newPage();
       await page.goto(`${extensionUrl}/options.html`);
-      await expect(page.locator('.options-header h1')).toContainText('IVPN Companion');
+      await expect(page.locator('.options-header h1')).toContainText('IVPN Proxy-Switcher');
       await expect(page.locator('.tab[data-tab="proxy"]')).toBeVisible();
-      await expect(page.locator('.tab[data-tab="domains"]')).toBeVisible();
+      await expect(page.locator('.tab[data-tab="rules"]')).toBeVisible();
+      await expect(page.locator('.tab[data-tab="exclusions"]')).toBeVisible();
       await expect(page.locator('.tab[data-tab="privacy"]')).toBeVisible();
       await expect(page.locator('.tab[data-tab="backup"]')).toBeVisible();
       await expect(page.locator('.tab[data-tab="about"]')).toBeVisible();

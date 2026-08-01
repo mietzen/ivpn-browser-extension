@@ -1,5 +1,10 @@
 /**
- * Toolbar badge — on/off state and current location code.
+ * Toolbar badge. v2 model: badge reflects the global proxy state.
+ *   - global.direct  → empty badge, inactive color
+ *   - global.socks5  → gateway code, active color
+ *   - per-domain rules present (any non-inherit target) → show "R" or
+ *     a count badge so the user knows at a glance that per-host
+ *     overrides are active.
  */
 
 import { browser } from 'wxt/browser';
@@ -18,22 +23,25 @@ export async function updateBadge(settings: PersistedSettings): Promise<void> {
   let text: string;
   let color: string;
 
-  if (settings.mode === 'direct' && settings.domainRules.length === 0) {
-    text = '';
-    color = INACTIVE_COLOR;
-  } else if (settings.mode === 'random') {
+  if (settings.global.kind === 'socks5') {
+    text = settings.global.label.slice(0, 4).toUpperCase();
+    color = ACTIVE_COLOR;
+  } else if (hasActiveOverride(settings)) {
     text = 'R';
     color = ACTIVE_COLOR;
-  } else if (settings.globalGateway) {
-    text = settings.globalGateway.slice(0, 4).toUpperCase();
-    color = ACTIVE_COLOR;
   } else {
-    text = 'ON';
-    color = ACTIVE_COLOR;
+    text = '';
+    color = INACTIVE_COLOR;
   }
 
   await actionApi.setBadgeBackgroundColor({ color });
   await actionApi.setBadgeText({ text });
+}
+
+function hasActiveOverride(settings: PersistedSettings): boolean {
+  return settings.domainRules.some(
+    (r) => !r.disabled && r.target.kind !== 'global',
+  );
 }
 
 export async function showErrorBadge(message: string): Promise<void> {

@@ -2,35 +2,22 @@
  * Background service worker. Coordinates:
  *   - settings changes → push new proxy rules
  *   - server list fetch + cache (with TTL)
+ *   - smart first-install default (geo-lookup → same-country server → random)
  *   - usage history recording
  *   - badge updates
  *   - WebRTC privacy setting (Firefox-only)
- *   - extension/HTTPS-Only recommendations
- *
- * Wires the storage and proxy layers together. No UI lives here.
+ *   - active tab host lookup for the popup
  */
 
 import { browser, type Browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { getServers, getConnectionStatus } from '../lib/ivpn/client';
 import type { IvpnServer } from '../lib/ivpn/types';
-import { pickRandomServer } from '../lib/ivpn/grouping';
-import {
-  buildRulesFromSettings,
-  historyStore,
-  serverCacheStore,
-  settingsStore,
-  type PersistedSettings,
-} from '../lib/storage';
-import {
-  setProxyRules,
-  clearProxyRules,
-  targetFromServer,
-  isFirefox,
-} from '../lib/proxy';
-import { updateBadge } from '~/lib/badge';
+import { groupActiveServers } from '../lib/ivpn/grouping';
+import { buildRulesFromSettings, historyStore, resolveMigratedGlobal, serverCacheStore, settingsStore, type PersistedSettings } from '../lib/storage';
+import { setProxyRules, clearProxyRules, targetFromServer } from '../lib/proxy';
+import { updateBadge } from '../lib/badge';
 import { refreshWebRtcSetting, detectWebRtcLeak } from '../lib/webrtc';
-import { scanRecommendations } from '../lib/recommendations';
 
 const SERVER_CACHE_TTL_MS = 30 * 60 * 1000;
 
@@ -55,27 +42,67 @@ async function getServersWithCache(force = false): Promise<IvpnServer[]> {
 
 async function pushCurrentRules(): Promise<void> {
   if (!state) return;
-  const { settings, servers } = state;
-  let randomTarget = null;
-  if (settings.mode === 'random') {
-    const chosen = pickRandomServer(servers);
-    randomTarget = chosen ? targetFromServer(chosen) : null;
-  }
-  const rules = buildRulesFromSettings(settings, servers, randomTarget);
-  if (settings.mode === 'direct' && rules.domainRules.length === 0) {
+  const rules = buildRulesFromSettings(state.settings, state.servers);
+  const hasSocks5Global = rules.global.kind === 'socks5';
+  const hasAnySocks5Target = rules.domainRules.some((r) => r.target.kind === 'socks5') || hasSocks5Global;
+  if (!hasAnySocks5Target && rules.domainRules.length === 0) {
     await clearProxyRules();
   } else {
-    await setProxyRules(rules);
+    await setProxyRules(rules, state.servers);
   }
-  await updateBadge(settings);
+  await updateBadge(state.settings);
+}
+
+/**
+ * On first install (or whenever the global is still `direct` and no
+ * history exists), pick a sensible default: same-country server based
+ * on geo-lookup, falling back to a random active server. Idempotent —
+ * only fires if global is unset and history is empty.
+ */
+async function maybeSetSmartDefault(servers: IvpnServer[]): Promise<void> {
+  if (!state) return;
+  const { settings } = state;
+  if (settings.global.kind !== 'direct') return;
+  const history = await historyStore.getAll();
+  if (Object.keys(history).length > 0) return;
+  if (servers.length === 0) return;
+
+  const chosen = (await pickServerInUserCountry(servers)) ?? randomServer(servers);
+  if (!chosen) return;
+
+  const target = targetFromServer(chosen);
+  if (target.kind === 'socks5') {
+    const next = await settingsStore.patch({ global: target });
+    state.settings = next;
+  }
+}
+
+function pickServerInUserCountry(servers: IvpnServer[]): Promise<IvpnServer | null> {
+  return getConnectionStatus()
+    .then((status) => {
+      if (!status?.country_code) return null;
+      const code = status.country_code;
+      return servers.find((s) => s.country_code === code && s.is_active && !s.in_maintenance) ?? null;
+    })
+    .catch(() => null);
+}
+
+function randomServer(servers: IvpnServer[]): IvpnServer | null {
+  const groups = groupActiveServers(servers);
+  const flat = groups.flatMap((g) => g.cities.flatMap((c) => c.servers));
+  return flat[Math.floor(Math.random() * flat.length)] ?? null;
 }
 
 async function hydrate(): Promise<void> {
-  const [settings, servers] = await Promise.all([
-    settingsStore.get(),
-    getServersWithCache(),
-  ]);
+  let settings = await settingsStore.get();
+  const servers = await getServersWithCache();
+  const resolved = resolveMigratedGlobal(settings, servers);
+  if (resolved.settings !== settings) {
+    await settingsStore.set(resolved.settings);
+    settings = resolved.settings;
+  }
   state = { settings, servers };
+  await maybeSetSmartDefault(servers);
   await pushCurrentRules();
   await refreshWebRtcSetting(settings.webRtcEnabled, settings.webRtcDisableApplied);
 }
@@ -83,7 +110,6 @@ async function hydrate(): Promise<void> {
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(async () => {
     await hydrate();
-    await scanRecommendations();
   });
 
   browser.runtime.onStartup.addListener(async () => {
@@ -94,7 +120,6 @@ export default defineBackground(() => {
     return handleMessage(message);
   });
 
-  // Initial hydrate. Service workers may restart, so do this on every boot.
   hydrate().catch((err) => {
     console.error('Initial hydrate failed:', err);
   });
@@ -103,8 +128,11 @@ export default defineBackground(() => {
 interface MessageMap {
   'settings/get': undefined;
   'settings/patch': Partial<PersistedSettings>;
+  'settings/setGlobal': { global: PersistedSettings['global'] };
   'servers/refresh': undefined;
+  'servers/list': undefined;
   'connection/status': undefined;
+  'tabs/active': undefined;
   'webrtc/leakCheck': undefined;
   'webrtc/toggle': { enabled: boolean };
   'history/get': undefined;
@@ -121,7 +149,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
 
   switch (msg.type) {
     case 'settings/get': {
-      return (await settingsStore.get());
+      return await settingsStore.get();
     }
     case 'settings/patch': {
       const partial = (msg.payload ?? {}) as Partial<PersistedSettings>;
@@ -133,11 +161,22 @@ async function handleMessage(message: unknown): Promise<unknown> {
       }
       return next;
     }
+    case 'settings/setGlobal': {
+      const { global } = msg.payload as { global: PersistedSettings['global'] };
+      const next = await settingsStore.patch({ global });
+      if (state) state.settings = next;
+      await pushCurrentRules();
+      return next;
+    }
     case 'servers/refresh': {
       const servers = await getServersWithCache(true);
       if (state) state.servers = servers;
       await pushCurrentRules();
       return { servers, count: servers.length, fetchedAt: (await serverCacheStore.get())?.fetchedAt };
+    }
+    case 'servers/list': {
+      if (!state) return [];
+      return state.servers;
     }
     case 'connection/status': {
       try {
@@ -146,17 +185,26 @@ async function handleMessage(message: unknown): Promise<unknown> {
         return { ok: false, error: (err as Error).message };
       }
     }
+    case 'tabs/active': {
+      try {
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
+        if (!tab?.url) return { host: null };
+        const u = new URL(tab.url);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return { host: null };
+        return { host: u.hostname };
+      } catch (err) {
+        return { host: null, error: (err as Error).message };
+      }
+    }
     case 'webrtc/leakCheck': {
       return { ok: true, supported: true, ...(await detectWebRtcLeak()) };
     }
     case 'webrtc/toggle': {
-      const enabled = (msg.payload as { enabled: boolean }).enabled;
-      if (!isFirefox && !enabled) {
-        return { ok: false, reason: 'unsupported' };
-      }
+      const { enabled } = msg.payload as { enabled: boolean };
       const next = await settingsStore.patch({
         webRtcEnabled: enabled,
-        webRtcDisableApplied: !enabled && isFirefox,
+        webRtcDisableApplied: !enabled,
       });
       if (state) state.settings = next;
       await refreshWebRtcSetting(next.webRtcEnabled, next.webRtcDisableApplied);
@@ -166,7 +214,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
       return await historyStore.getAll();
     }
     case 'history/recordUse': {
-      const gateway = (msg.payload as { gateway: string }).gateway;
+      const { gateway } = msg.payload as { gateway: string };
       await historyStore.recordUse(gateway);
       return { ok: true };
     }
@@ -176,13 +224,7 @@ async function handleMessage(message: unknown): Promise<unknown> {
     }
     case 'rules/current': {
       if (!state) return null;
-      const randomServer =
-        state.settings.mode === 'random' ? pickRandomServer(state.servers) : null;
-      return buildRulesFromSettings(
-        state.settings,
-        state.servers,
-        randomServer ? targetFromServer(randomServer) : null,
-      );
+      return buildRulesFromSettings(state.settings, state.servers);
     }
     default:
       return { error: `unknown message: ${msg.type}` };

@@ -7,10 +7,10 @@ export default defineConfig({
   manifestVersion: 3,
 
   manifest: ({ browser }) => ({
-    name: 'IVPN Browser Extension (Community)',
-    short_name: 'IVPN Companion',
+    name: 'IVPN Proxy-Switcher',
+    short_name: 'IVPN Proxy-Switcher',
     description:
-      'Community-maintained browser extension for IVPN. Routes browser traffic through IVPN desktop app SOCKS5 proxy. Unofficial, not affiliated with IVPN Limited.',
+      'Routes browser traffic through the IVPN desktop app SOCKS5 proxy. Unofficial, not affiliated with IVPN Limited.',
     permissions: [
       'proxy',
       'storage',

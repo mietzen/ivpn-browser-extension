@@ -1,13 +1,13 @@
 /**
- * Firefox proxy implementation — uses browser.proxy.onRequest.
- *
- * Per PLAN.md §4, request host is matched against the domain map (exact host
- * first, then parent-domain fallback). Exclusions are checked first.
+ * Firefox proxy handler. Uses browser.proxy.onRequest to evaluate each
+ * request against the current ruleset and pick a target.
  */
 
 import { browser } from 'wxt/browser';
-import type { ProxyRules, ProxyTarget } from './rules';
-import { findRuleForHost, isExcluded, resolveTarget } from './rules';
+import type { IvpnServer } from '../ivpn/types';
+import type { GlobalProxy, ProxyRules, RuleTarget, Socks5Endpoint } from './rules';
+import { DIRECT_TARGET, isExcluded, findRuleForHost } from './rules';
+import { patternMatches } from './pattern';
 
 type ProxyRequest = {
   tabId: number;
@@ -29,11 +29,46 @@ type ProxyInfo = {
 type ProxyRequestDetails = ProxyRequest & { requestId: string };
 type OnRequestCallback = (details: ProxyRequestDetails) => Promise<ProxyInfo> | ProxyInfo;
 
-let currentRules: ProxyRules | null = null;
+export interface ResolveContext {
+  rules: ProxyRules;
+  servers: IvpnServer[];
+  randomTarget: { endpoint: Socks5Endpoint; label: string } | null;
+}
+
+let currentContext: ResolveContext | null = null;
 let listenerRegistered = false;
 
+function pickRuleTarget(host: string, ctx: ResolveContext): RuleTarget {
+  if (isExcluded(host, ctx.rules.exclusions)) return DIRECT_TARGET;
+  const rule = findRuleForHost(host, ctx.rules.domainRules);
+  if (rule) return rule.target;
+  if (ctx.rules.global.kind === 'socks5') {
+    return { kind: 'socks5', endpoint: ctx.rules.global.endpoint, label: ctx.rules.global.label };
+  }
+  return DIRECT_TARGET;
+}
+
+function randomServer(ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
+  const eligible = ctx.servers.filter((s) => s.is_active && !s.in_maintenance);
+  if (eligible.length === 0) return null;
+  return ctx.randomTarget ?? null;
+}
+
+function resolveEndpoint(target: RuleTarget, ctx: ResolveContext): { endpoint: Socks5Endpoint; label: string } | null {
+  if (target.kind === 'direct') return null;
+  if (target.kind === 'socks5') return { endpoint: target.endpoint, label: target.label };
+  if (target.kind === 'random') return randomServer(ctx);
+  if (target.kind === 'global') {
+    if (ctx.rules.global.kind === 'socks5') {
+      return { endpoint: ctx.rules.global.endpoint, label: ctx.rules.global.label };
+    }
+    return null;
+  }
+  return null;
+}
+
 async function handleRequest(details: ProxyRequestDetails): Promise<ProxyInfo> {
-  if (!currentRules) return { type: 'direct' };
+  if (!currentContext) return { type: 'direct' };
   let host: string;
   try {
     host = new URL(details.url).hostname;
@@ -42,31 +77,31 @@ async function handleRequest(details: ProxyRequestDetails): Promise<ProxyInfo> {
   }
   if (!host) return { type: 'direct' };
 
-  if (isExcluded(host, currentRules.exclusions)) {
-    return { type: 'direct' };
-  }
+  const target = pickRuleTarget(host, currentContext);
+  const resolved = resolveEndpoint(target, currentContext);
+  if (!resolved) return { type: 'direct' };
 
-  const rule = findRuleForHost(host, currentRules.domainRules);
-  let target: ProxyTarget;
-  let proxyDns = false;
-  if (rule) {
-    target = rule.endpoint ? { endpoint: rule.endpoint, label: rule.label } : { endpoint: null, label: 'Direct' };
-    proxyDns = rule.proxyDns;
-  } else {
-    target = resolveTarget(host, currentRules);
-  }
+  const rule = findRuleForHost(host, currentContext.rules.domainRules);
+  const proxyDns = rule ? rule.proxyDns : false;
 
-  if (!target.endpoint) return { type: 'direct' };
   return {
     type: 'socks',
-    host: target.endpoint.host,
-    port: target.endpoint.port,
+    host: resolved.endpoint.host,
+    port: resolved.endpoint.port,
     proxyDNS: proxyDns,
   };
 }
 
-export async function setProxyRules(rules: ProxyRules): Promise<void> {
-  currentRules = rules;
+export function setResolveContext(ctx: ResolveContext): void {
+  currentContext = ctx;
+}
+
+export async function setProxyRules(rules: ProxyRules, servers: IvpnServer[]): Promise<void> {
+  currentContext = {
+    rules,
+    servers,
+    randomTarget: null,
+  };
   if (!listenerRegistered) {
     const proxyApi = browser.proxy as unknown as {
       onRequest: { addListener: (cb: OnRequestCallback, filter?: unknown, extraInfo?: string[]) => void };
@@ -77,7 +112,7 @@ export async function setProxyRules(rules: ProxyRules): Promise<void> {
 }
 
 export async function clearProxyRules(): Promise<void> {
-  currentRules = null;
+  currentContext = null;
   if (listenerRegistered) {
     const proxyApi = browser.proxy as unknown as {
       onRequest: { removeListener: (cb: OnRequestCallback) => void };
@@ -86,3 +121,6 @@ export async function clearProxyRules(): Promise<void> {
     listenerRegistered = false;
   }
 }
+
+export { patternMatches };
+export type { GlobalProxy };

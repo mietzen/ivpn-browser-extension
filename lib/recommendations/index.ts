@@ -1,8 +1,8 @@
 /**
- * Extension + HTTPS-Only recommendations. Generic — not tied to any specific
- * vendor. Per PLAN.md §3, the recommendation content is the only thing that
- * needs the new copy. uBlock Origin is the de-facto choice for content
- * blockers; HTTPS-Only mode is built into Firefox already.
+ * Extension + HTTPS-Only helpers. Kept thin — the recommendation list
+ * itself is empty by design (no third-party extension promotion in the
+ * community build). `isHttpsOnlyAvailable` is still used by the options
+ * privacy tab to surface a Firefox-specific nudge.
  */
 
 import { browser } from 'wxt/browser';
@@ -11,27 +11,11 @@ export interface ExtensionRecommendation {
   id: string;
   name: string;
   reason: string;
-  /** Chrome Web Store / Firefox AMO URLs. We try AMO first on Firefox. */
   storeUrls: { firefox?: string; chrome?: string };
-  /** When present, ask the management API whether it's already installed. */
   matchIds?: { firefox?: string[]; chrome?: string[] };
 }
 
-export const RECOMMENDATIONS: ExtensionRecommendation[] = [
-  {
-    id: 'ublock-origin',
-    name: 'uBlock Origin',
-    reason: 'Lightweight, open-source content blocker. Reduces ads, trackers, and malware pages.',
-    storeUrls: {
-      firefox: 'https://addons.mozilla.org/firefox/addon/ublock-origin/',
-      chrome: 'https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm',
-    },
-    matchIds: {
-      firefox: ['uBlock0@raymondhill.net'],
-      chrome: ['cjpalhdlnbpafiamejdnhcphjbkeiagm'],
-    },
-  },
-];
+export const RECOMMENDATIONS: ExtensionRecommendation[] = [];
 
 export interface RecommendationStatus {
   id: string;

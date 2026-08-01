@@ -1,92 +1,170 @@
 /**
- * Chrome MV3 proxy implementation — generates a PAC script and registers it
- * with chrome.proxy.settings. Same domain-matching logic as the Firefox path;
- * the PAC just inlines it. Per PLAN.md §4.
+ * Chrome MV3 proxy handler. Generates a PAC script and registers it via
+ * chrome.proxy.settings. The PAC inlines the same pattern-matcher logic
+ * used by the Firefox listener, so rules apply identically on both
+ * browsers.
  */
 
 import { browser } from 'wxt/browser';
-import type { ProxyRules } from './rules';
-import { findRuleForHost, hostMatchesDomain, isExcluded } from './rules';
-
-const SOCKS_PROXY_TYPE = 'SOCKS5';
+import type { GlobalProxy, ProxyRules, RuleTarget, Socks5Endpoint } from './rules';
 
 function escapeJsString(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function buildExclusionList(exclusions: string[]): string {
-  if (exclusions.length === 0) return '[]';
-  const items = exclusions.map((e) => `'${escapeJsString(e.toLowerCase())}'`).join(',');
-  return `[${items}]`;
+function toProxyString(endpoint: Socks5Endpoint | null): string {
+  if (!endpoint) return "'DIRECT'";
+  return `'SOCKS5 ${endpoint.host}:${endpoint.port}'`;
 }
 
-function buildDomainRules(rules: ProxyRules['domainRules']): string {
-  const active = rules.filter((r) => !r.disabled && r.endpoint);
-  if (active.length === 0) return '[]';
-  const items = active
-    .map((r) => {
-      const ep = r.endpoint;
-      if (!ep) return null;
-      return (
-        `{domain: '${escapeJsString(r.domain.toLowerCase())}', ` +
-        `host: '${escapeJsString(ep.host)}', ` +
-        `port: ${ep.port}, ` +
-        `label: '${escapeJsString(r.label)}', ` +
-        `proxyDns: ${r.proxyDns ? 'true' : 'false'}}`
-      );
-    })
-    .filter((s): s is string => s !== null)
-    .join(',\n');
-  return `[\n${items}\n]`;
-}
-
-function buildGlobalProxy(rules: ProxyRules): string {
-  if (rules.mode === 'direct') return 'null';
-  const target = rules.mode === 'random' ? rules.randomTarget : rules.globalTarget;
-  if (!target || !target.endpoint) return 'null';
-  return (
-    `{host: '${escapeJsString(target.endpoint.host)}', port: ${target.endpoint.port}}`
-  );
+function resolveToEndpointJs(target: RuleTarget, global: GlobalProxy, hasRandom: boolean): string {
+  if (target.kind === 'direct') return toProxyString(null);
+  if (target.kind === 'socks5') return toProxyString(target.endpoint);
+  if (target.kind === 'global') {
+    return global.kind === 'socks5' ? toProxyString(global.endpoint) : toProxyString(null);
+  }
+  if (target.kind === 'random') {
+    return hasRandom ? 'randomChoice' : toProxyString(null);
+  }
+  return toProxyString(null);
 }
 
 /**
- * Generate PAC script text. Shape mirrors the JS module logic:
- *   exclusion list → per-domain rule (with parent-domain fallback) → global target.
+ * Generate PAC script. Resolution order matches the Firefox handler:
+ * exclusion > first matching rule > global > direct.
+ *
+ * Patterns (wildcards, CIDR) are matched by inlining the same algorithm
+ * the host-side pattern matcher uses.
  */
-export function generatePacScript(rules: ProxyRules): string {
+export function generatePacScript(rules: ProxyRules, randomChoiceJs: string): string {
+  const exclusionList = rules.exclusions
+    .map((e) => `'${escapeJsString(e.toLowerCase())}'`)
+    .join(',');
+  const ruleList = rules.domainRules
+    .filter((r) => !r.disabled)
+    .map((r) => {
+      const t = resolveToEndpointJs(r.target, rules.global, true);
+      return `{pattern: '${escapeJsString(r.pattern.toLowerCase())}', target: ${t}, proxyDns: ${r.proxyDns ? 'true' : 'false'}}`;
+    })
+    .join(',\n');
+  const globalJs =
+    rules.global.kind === 'socks5' ? toProxyString(rules.global.endpoint) : toProxyString(null);
+
   return `
 function FindProxyForURL(url, host) {
-  var exclusions = ${buildExclusionList(rules.exclusions)};
-  var domainRules = ${buildDomainRules(rules.domainRules)};
-  var globalProxy = ${buildGlobalProxy(rules)};
+  var exclusions = [${exclusionList}];
+  var domainRules = [${ruleList}];
+  var globalProxy = ${globalJs};
+  var randomPool = ${randomChoiceJs};
 
   host = (host || '').toLowerCase().replace(/\\.+$/, '');
   if (!host) return 'DIRECT';
 
   for (var i = 0; i < exclusions.length; i++) {
-    var ex = exclusions[i].replace(/\\.+$/, '');
-    if (host === ex || host.endsWith('.' + ex)) return 'DIRECT';
+    if (matchPattern(host, exclusions[i])) return 'DIRECT';
   }
 
   for (var j = 0; j < domainRules.length; j++) {
-    var r = domainRules[j];
-    var d = r.domain.replace(/\\.+$/, '');
-    if (host === d || host.endsWith('.' + d)) {
-      var proxy = r.proxyDns ? 'SOCKS5 ' : 'SOCKS ';
-      return proxy + r.host + ':' + r.port;
+    if (matchPattern(host, domainRules[j].pattern)) {
+      if (domainRules[j].target === 'randomChoice') return randomPool();
+      return domainRules[j].target;
     }
   }
 
-  if (globalProxy) {
-    return '${SOCKS_PROXY_TYPE} ' + globalProxy.host + ':' + globalProxy.port;
+  return globalProxy;
+}
+
+function matchPattern(host, pattern) {
+  pattern = (pattern || '').toLowerCase().replace(/\\.+$/, '');
+  if (pattern.indexOf('/') !== -1) {
+    return cidrMatch(host, pattern);
   }
-  return 'DIRECT';
+  if (pattern.indexOf('*') !== -1) {
+    var re = new RegExp('^' + pattern.replace(/[.+?^\${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\*/g, '[^.]+') + '$');
+    return re.test(host);
+  }
+  return host === pattern || host.endsWith('.' + pattern);
+}
+
+function cidrMatch(host, cidr) {
+  var slash = cidr.indexOf('/');
+  if (slash === -1) return false;
+  var ip = cidr.substring(0, slash);
+  var bits = parseInt(cidr.substring(slash + 1), 10);
+  if (host.indexOf(':') !== -1) return ipv6CidrContains(host, ip, bits);
+  if (!/^\\d{1,3}(\\.\\d{1,3}){3}$/.test(host)) return false;
+  return ipv4CidrContains(host, ip, bits);
+}
+
+function ipv4ToInt(s) {
+  var p = s.split('.').map(Number);
+  if (p.length !== 4 || p.some(function (n) { return !Number.isInteger(n) || n < 0 || n > 255; })) return -1;
+  return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
+}
+
+function ipv4CidrContains(host, ip, bits) {
+  var h = ipv4ToInt(host);
+  var n = ipv4ToInt(ip);
+  if (h < 0 || n < 0) return false;
+  if (bits === 0) return true;
+  var mask = bits === 32 ? 0xffffffff : (~((1 << (32 - bits)) - 1)) >>> 0;
+  return (h & mask) === (n & mask);
+}
+
+function expandIpv6(s) {
+  if (s.indexOf(':::') !== -1) return null;
+  var parts;
+  if (s.indexOf('::') !== -1) {
+    var split = s.split('::');
+    var head = split[0] === '' ? [] : split[0].split(':');
+    var tail = split[1] === '' ? [] : split[1].split(':');
+    var missing = 8 - head.length - tail.length;
+    if (missing < 0) return null;
+    parts = head.concat(new Array(missing).fill('0')).concat(tail);
+  } else {
+    parts = s.split(':');
+  }
+  if (parts.length !== 8) return null;
+  for (var i = 0; i < parts.length; i++) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(parts[i])) return null;
+    parts[i] = ('0000' + parts[i]).slice(-4);
+  }
+  return parts.join(':');
+}
+
+function ipv6ToBigInt(s) {
+  var expanded = expandIpv6(s);
+  if (expanded === null) return null;
+  var parts = expanded.split(':');
+  var result = 0n;
+  for (var i = 0; i < parts.length; i++) {
+    result = (result << 16n) | BigInt(parseInt(parts[i], 16));
+  }
+  return result;
+}
+
+function ipv6CidrContains(host, ip, bits) {
+  var h = ipv6ToBigInt(host);
+  var n = ipv6ToBigInt(ip);
+  if (h === null || n === null) return false;
+  if (bits === 0) return true;
+  var fullMask = (1n << 128n) - 1n;
+  var mask = bits === 128 ? fullMask : ((1n << BigInt(128 - bits)) - 1n) ^ fullMask;
+  return (h & mask) === (n & mask);
 }
 `.trim();
 }
 
-export async function setProxyRules(rules: ProxyRules): Promise<void> {
-  const pacScript = generatePacScript(rules);
+export async function setProxyRules(rules: ProxyRules, randomPool: Socks5Endpoint[]): Promise<void> {
+  const randomChoiceJs =
+    randomPool.length > 0
+      ? `function() {
+  var pool = ${JSON.stringify(randomPool)};
+  return 'SOCKS5 ' + pool[Math.floor(Math.random() * pool.length)].host + ':' + pool[Math.floor(Math.random() * pool.length)].port;
+}`
+      : "function() { return 'DIRECT'; }";
+
+  const pacScript = generatePacScript(rules, randomChoiceJs);
 
   await browser.proxy.settings.set({
     value: {
@@ -100,5 +178,3 @@ export async function setProxyRules(rules: ProxyRules): Promise<void> {
 export async function clearProxyRules(): Promise<void> {
   await browser.proxy.settings.clear({ scope: 'regular' });
 }
-
-export { findRuleForHost, hostMatchesDomain, isExcluded };

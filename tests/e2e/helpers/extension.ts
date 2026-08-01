@@ -172,20 +172,13 @@ export async function mockGeoLookup(context: BrowserContext): Promise<void> {
 }
 
 /**
- * Open the extension's popup as a Playwright Page. Waits for the picker
- * section to be attached and the server list to render.
+ * Open the extension's popup as a Playwright Page. Waits for the two
+ * combobox triggers to be present, which means init() has rendered.
  */
 export async function openPopup(context: BrowserContext, extensionUrl: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto(`${extensionUrl}/popup.html`);
-  // Wait for the popup DOM to attach (state: 'attached' avoids failing on
-  // empty-but-present elements that Playwright considers "hidden" because
-  // they have no rendered content yet).
-  await page.waitForSelector('#picker-list', { state: 'attached', timeout: 15000 });
-  // Then wait for the live server list to render. The selector matches any
-  // rendered server row, so as soon as the first server arrives we proceed.
-  // Live API can be slow — generous timeout.
-  await page.waitForSelector('.picker-server, .picker-city', { timeout: 45000 });
+  await page.waitForSelector('.combobox-trigger', { state: 'visible', timeout: 20000 });
   return page;
 }
 
@@ -198,7 +191,7 @@ export async function openOptionsPage(context: BrowserContext, extensionUrl: str
   await page.waitForSelector('.tab-panel.active', { timeout: 15000 });
   // Wait for the live server select to populate. Live API can be slow.
   await page.waitForFunction(
-    () => document.querySelectorAll('#global-server option').length > 0,
+    () => document.querySelectorAll('#global-proxy option').length > 0,
     null,
     { timeout: 45000 },
   );

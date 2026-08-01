@@ -5,8 +5,8 @@ Smoke tests for the extension running in a real browser.
 ## What's covered
 
 - Extension installs and renders the options page
-- Popup renders the **live** IVPN server list, mode toggle, search filter
-- Options page: 5 tabs, per-domain rule CRUD, export download
+- Popup renders the **live** IVPN server list, Global + Current Website comboboxes, status panel
+- Options page: 6 tabs, per-domain rule CRUD, export download
 - Settings persist across popup reload
 
 ## What's NOT covered (out of scope for v1)
