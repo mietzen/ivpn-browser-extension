@@ -12,7 +12,7 @@ permissions:
 jobs:
   e2e:
     name: Playwright (${{ matrix.browser }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +70,7 @@ jobs:
 
   Check-E2E:
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs:
       - e2e
     steps:
